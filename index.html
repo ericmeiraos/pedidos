@@ -136,15 +136,17 @@ tr.fresh{background:var(--fresh);animation:flash 2.5s ease-out}
 .notice.warn{background:var(--amber-soft);color:var(--amber)}
 .notice.success{background:var(--green-soft);color:var(--green)}
 .notice.error{background:var(--red-soft);color:var(--red)}
-.modalback{position:fixed;inset:0;background:#0b1529b0;display:none;align-items:center;justify-content:center;padding:18px;z-index:10}
+.modalback{position:fixed;inset:0;background:#0b1529b0;display:none;align-items:center;justify-content:center;padding:18px;z-index:100}
 .modalback.show{display:flex}
-.modal{width:min(700px,100%);max-height:90vh;overflow:auto;background:var(--panel);border-radius:16px;box-shadow:0 20px 80px #0005}
+.modal{width:min(700px,100%);max-height:90vh;max-height:calc(100dvh - 36px);display:flex;flex-direction:column;overflow:hidden;background:var(--panel);border-radius:16px;box-shadow:0 20px 80px #0005}
 .modalhead,.modalfoot{padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid var(--line)}
 .modalfoot{border-bottom:0;border-top:1px solid var(--line);justify-content:flex-end;flex-wrap:wrap}
 .modalhead h2{font-size:17px;margin:0}
-.modalbody{padding:20px}
-.close{font-size:22px;background:transparent;color:var(--muted);padding:0 8px}
-.toast{position:fixed;right:20px;bottom:20px;max-width:min(430px,calc(100vw - 40px));background:#17243b;color:#fff;padding:13px 17px;border-radius:11px;box-shadow:0 10px 35px #0004;z-index:20;display:none}
+.modalbody{padding:20px;flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.modalhead,.modalfoot{flex:none}
+body.modal-open{overflow:hidden}
+.close{font-size:24px;line-height:1;background:transparent;color:var(--muted);padding:0 10px;min-width:40px;min-height:40px}
+.toast{position:fixed;right:20px;bottom:20px;max-width:min(430px,calc(100vw - 40px));background:#17243b;color:#fff;padding:13px 17px;border-radius:11px;box-shadow:0 10px 35px #0004;z-index:300;display:none;pointer-events:none}
 .toast.show{display:block}
 .footnote{font-size:12px;color:var(--muted);margin-top:12px}
 .rowbuttons{display:flex;gap:6px}
@@ -175,7 +177,7 @@ tr.fresh{background:var(--fresh);animation:flash 2.5s ease-out}
 }
 
 body.locked .app,body.locked .bottomnav{display:none}
-.login{position:fixed;inset:0;z-index:50;background:linear-gradient(160deg,#15213a,#2a4fb8);display:none;align-items:center;justify-content:center;padding:18px;overflow:auto}
+.login{position:fixed;inset:0;z-index:200;background:linear-gradient(160deg,#15213a,#2a4fb8);display:none;padding:18px;overflow:auto}
 body.locked .login{display:flex}
 .logincard{width:min(400px,100%);background:var(--panel);border-radius:18px;padding:28px 24px;box-shadow:0 20px 70px #0006}
 .logincard h1{font-size:22px;margin:12px 0 4px;letter-spacing:-.4px}
@@ -183,7 +185,8 @@ body.locked .login{display:flex}
 .passwrap{display:flex;gap:8px}.passwrap input{flex:1}
 .loginerr{color:var(--red);font-size:13px;min-height:18px;margin:12px 0 0}
 details summary{cursor:pointer;color:var(--muted);font-size:12px;margin:2px 0 10px}
-.loginbusy{color:#fff;font-weight:600}
+.loginbusy{color:#fff;font-weight:600;margin:auto}
+.logincard{margin:auto}
 .cobgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:14px;padding:16px}
 .cobcard{border:1px solid var(--line);border-radius:14px;padding:15px;background:var(--panel);display:grid;gap:11px;align-content:start}
 .cobhead{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
@@ -228,6 +231,29 @@ details summary{cursor:pointer;color:var(--muted);font-size:12px;margin:2px 0 10
   .modalfoot button{flex:1 1 auto}
   .rowbuttons{flex-wrap:wrap}
   .stack td .rowbuttons{justify-content:flex-end}
+}
+@media(max-width:900px){
+  .modalback{align-items:flex-end;padding:0}
+  .modal{width:100%;max-height:calc(100vh - 10px - env(safe-area-inset-top));max-height:calc(100dvh - 10px - env(safe-area-inset-top));border-radius:18px 18px 0 0}
+  .modalhead{padding:8px 6px 8px 16px}.modalhead h2{font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .close{min-width:46px;min-height:46px;font-size:30px;padding:0}
+  .modalbody{padding:16px}
+  .modalfoot{display:flex;flex-wrap:wrap;justify-content:stretch;gap:8px;padding:12px 16px calc(12px + env(safe-area-inset-bottom))}
+  .modalfoot button{flex:1 1 calc(50% - 8px);min-height:44px}
+  .modalfoot .primary{flex-basis:100%;order:-1}
+  body.modal-open .toast{top:auto;bottom:calc(150px + env(safe-area-inset-bottom))}
+  .itemrow .ip,.itemrow .irm{grid-column:1/-1}
+  .cards{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .syncchip,.periodpill{white-space:normal;text-align:left}
+  .actions button{flex:1 1 auto}
+  .topbar .actions{gap:6px}.topbar .actions>*{flex:0 1 auto;font-size:11.5px;padding:6px 10px}
+  .moregrid button{min-height:48px}
+}
+@media(max-width:900px) and (max-height:520px){
+  .modalfoot .primary{flex-basis:auto;order:0}
+  .modalfoot button{flex:1 1 auto;min-height:38px}
+  .modalhead{padding:2px 6px 2px 16px}.close{min-height:38px}
+  .modalbody{padding:12px 16px}
 }
 @media(max-width:420px){.brand small{display:none}.userlabel{max-width:84px}}
 .cobimg{display:block;max-width:260px;width:100%;border:1px solid var(--line);border-radius:12px}
@@ -675,8 +701,20 @@ const LABELS={dashboard:['Dashboard','Visão geral dos pedidos e recebimentos.']
 function go(page){currentPage=page;document.querySelectorAll('.nav button,.bottomnav button[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===page));document.querySelectorAll('.section').forEach(s=>s.classList.toggle('active',s.id==='page-'+page));$('pageTitle').textContent=LABELS[page][0];$('pageSub').textContent=LABELS[page][1];{const mb=$('moreBtn');if(mb)mb.classList.toggle('active',!['dashboard','pedidos','cobrar','pagamentos'].includes(page))}if(page==='config')fillPixFields();window.scrollTo(0,0)}
 
 /* ---------- modais ---------- */
-function showModal(title,body,buttons=[]){$('modalTitle').textContent=title;$('modalBody').innerHTML=body;$('modalFoot').innerHTML=buttons.map(b=>`<button class="${b.cls||'outline'}" id="${b.id}">${b.label}</button>`).join('');$('modalBack').classList.add('show')}
-function closeModal(){$('modalBack').classList.remove('show')}
+let modalPushed=false,ignorePop=false;
+const modalOpen=()=>$('modalBack').classList.contains('show');
+function showModal(title,body,buttons=[]){
+  $('modalTitle').textContent=title;$('modalBody').innerHTML=body;$('modalBody').scrollTop=0;
+  $('modalFoot').innerHTML=buttons.map(b=>`<button class="${b.cls||'outline'}" id="${b.id}">${b.label}</button>`).join('');
+  $('modalFoot').classList.toggle('hidden',!buttons.length);
+  $('modalBack').classList.add('show');document.body.classList.add('modal-open');
+  if(!modalPushed){try{history.pushState({fpModal:1},'');modalPushed=true}catch(e){}}   // o botão Voltar do celular fecha a janela
+}
+function closeModal(){
+  $('modalBack').classList.remove('show');document.body.classList.remove('modal-open');
+  setTimeout(()=>{if(!modalOpen()&&modalPushed){modalPushed=false;if(history.state&&history.state.fpModal){ignorePop=true;history.back()}}},0);
+}
+window.addEventListener('popstate',()=>{if(ignorePop){ignorePop=false;return}if(modalOpen()){modalPushed=false;$('modalBack').classList.remove('show');document.body.classList.remove('modal-open')}});
 function openDetails(orderId){
   const o=orderGroups(allRows()).find(x=>x.id===orderId);if(!o)return;
   const cur=db.Pedidos.some(r=>r['ID do pedido']===orderId);
@@ -787,10 +825,10 @@ function cobrar(name){
   if(!po.orders.length){toast(name+' não tem valor em aberto.');return}
   const payload=pixPayload(po.due);
   showModal('Cobrar — '+name,`<div class="cobtop"><div class="qrbox">${qrSvg(payload,200)}</div><div class="pixinfo"><div class="muted">Valor a pagar</div><div class="bigmoney">${money(po.due)}</div><dl><dt>Chave Pix</dt><dd class="mono">${esc(c.key)}</dd><dt>Nome</dt><dd>${esc(c.name)}</dd><dt>Banco</dt><dd>${esc(c.bank)}</dd></dl>${po.paid>0.004?`<span class="muted">Total ${money(po.total)} · já pago ${money(po.paid)}</span>`:''}</div></div>
-  <div class="field"><label>Pix copia e cola (já com o valor)</label><textarea id="cobPix" rows="3" readonly>${esc(payload)}</textarea></div>
-  <div class="field"><label>Mensagem para enviar</label><textarea id="cobTxt" rows="10">${esc(cobrancaTexto(name,payload))}</textarea></div>
-  <div class="field"><label>Imagem com o QR Code (vai junto com a mensagem)</label><img id="cobImg" class="cobimg hidden" alt="Cobrança com QR Code Pix"><span class="muted" id="cobImgWait">Gerando imagem…</span></div>`,
-  [{id:'cobClose',label:'Fechar'},{id:'cobCopyPix',label:'Copiar Pix'},{id:'cobCopy',label:'Copiar mensagem'},{id:'cobDl',label:'Baixar imagem'},{id:'cobReceive',label:'Receber'},{id:'cobSend',label:'Enviar com imagem',cls:'primary'}]);
+  <div class="field"><label>Pix copia e cola (já com o valor)</label><textarea id="cobPix" rows="3" readonly>${esc(payload)}</textarea><div><button class="outline small" id="cobCopyPix">Copiar Pix copia e cola</button></div></div>
+  <div class="field"><label>Mensagem para enviar</label><textarea id="cobTxt" rows="10">${esc(cobrancaTexto(name,payload))}</textarea><div><button class="outline small" id="cobCopy">Copiar mensagem</button></div></div>
+  <div class="field"><label>Imagem com o QR Code (vai junto com a mensagem)</label><img id="cobImg" class="cobimg hidden" alt="Cobrança com QR Code Pix"><span class="muted" id="cobImgWait">Gerando imagem…</span><div><button class="outline small" id="cobDl">Baixar imagem</button></div></div>`,
+  [{id:'cobClose',label:'Fechar'},{id:'cobReceive',label:'Receber'},{id:'cobSend',label:'Enviar com imagem',cls:'primary'}]);
   const blobP=cobrancaImagem(name,po.due,payload);
   blobP.then(b=>{const im=$('cobImg');if(!im)return;if(b){im.src=URL.createObjectURL(b);im.classList.remove('hidden');$('cobImgWait').classList.add('hidden')}else $('cobImgWait').textContent='Não foi possível gerar a imagem neste navegador.'});
   $('cobClose').onclick=closeModal;
@@ -814,7 +852,7 @@ function cobrar(name){
 function extrato(name){
   const gs=orderGroups(allRows()).filter(o=>slug(o.name)===slug(name)).sort((a,b)=>b.date.localeCompare(a.date)||b.i-a.i);
   const total=sum(gs,o=>o.total),paid=sum(gs,o=>Math.min(o.paid,o.total)),open=sum(gs,o=>o.balance);
-  showModal('Extrato — '+name,`<div class="cards" style="grid-template-columns:repeat(3,1fr)">${stat('Total',money(total))}${stat('Pago',money(paid),'','positive')}${stat('Em aberto',money(open),'',open>0.004?'negative':'')}</div>${gs.length?table(['Período','Data','Produtos','Total','Pago','Status'],gs.map(o=>`<tr><td data-label="Período">${esc(periodName(o.period))}</td><td data-label="Data">${fmtDate(o.date)}</td><td class="prod" data-label="Produtos">${esc(o.items.map(i=>`${i.product} × ${i.qty}`).join(', '))}</td><td class="money" data-label="Total">${money(o.total)}</td><td class="money" data-label="Pago">${money(Math.min(o.paid,o.total))}</td><td data-label="Status">${badge(o.status)}</td></tr>`).join('')):'<div class="empty">Sem pedidos.</div>'}`,[{id:'exClose',label:'Fechar'}].concat(db.Pedidos.length&&personOpen(name).due>0.004?[{id:'exCob',label:'Cobrar',cls:'primary'}]:[]));
+  showModal('Extrato — '+name,`<div class="cards" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr))">${stat('Total',money(total))}${stat('Pago',money(paid),'','positive')}${stat('Em aberto',money(open),'',open>0.004?'negative':'')}</div>${gs.length?table(['Período','Data','Produtos','Total','Pago','Status'],gs.map(o=>`<tr><td data-label="Período">${esc(periodName(o.period))}</td><td data-label="Data">${fmtDate(o.date)}</td><td class="prod" data-label="Produtos">${esc(o.items.map(i=>`${i.product} × ${i.qty}`).join(', '))}</td><td class="money" data-label="Total">${money(o.total)}</td><td class="money" data-label="Pago">${money(Math.min(o.paid,o.total))}</td><td data-label="Status">${badge(o.status)}</td></tr>`).join('')):'<div class="empty">Sem pedidos.</div>'}`,[{id:'exClose',label:'Fechar'}].concat(db.Pedidos.length&&personOpen(name).due>0.004?[{id:'exCob',label:'Cobrar',cls:'primary'}]:[]));
   $('exClose').onclick=closeModal;if($('exCob'))$('exCob').onclick=()=>cobrar(name);
 }
 function openMore(){
@@ -1267,7 +1305,7 @@ function archiveFlow(){
   if(!g.length){notify('Não há pedidos no período atual para arquivar.','warn');return}
   const total=sum(g,o=>o.total),paid=sum(g,o=>Math.min(o.paid,o.total));
   pendingArchive={p,g};
-  showModal('Prévia do arquivamento',`<div class="notice warn"><span>O histórico só vale depois que você baixar o Excel atualizado. Não limpe a planilha de origem antes disso.</span></div><div class="cards" style="grid-template-columns:repeat(2,1fr)">${stat('Período',esc(p.Nome))}${stat('Pedidos / pessoas',`${g.length} / ${new Set(g.map(o=>slug(o.name))).size}`)}${stat('Pago',money(paid),'','positive')}${stat('Pendente',money(total-paid),'','negative')}</div><p>Total do período: <strong>${money(total)}</strong></p>${table(['Pessoa','Total','Status'],g.slice(0,50).map(o=>`<tr><td data-label="Pessoa">${esc(o.name)}</td><td data-label="Total">${money(o.total)}</td><td data-label="Status">${badge(o.status)}</td></tr>`).join(''))}`,[{id:'cancelArchive',label:'Cancelar'},{id:'confirmArchive',label:'Confirmar e gerar Excel',cls:'primary'}]);
+  showModal('Prévia do arquivamento',`<div class="notice warn"><span>O histórico só vale depois que você baixar o Excel atualizado. Não limpe a planilha de origem antes disso.</span></div><div class="cards" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr))">${stat('Período',esc(p.Nome))}${stat('Pedidos / pessoas',`${g.length} / ${new Set(g.map(o=>slug(o.name))).size}`)}${stat('Pago',money(paid),'','positive')}${stat('Pendente',money(total-paid),'','negative')}</div><p>Total do período: <strong>${money(total)}</strong></p>${table(['Pessoa','Total','Status'],g.slice(0,50).map(o=>`<tr><td data-label="Pessoa">${esc(o.name)}</td><td data-label="Total">${money(o.total)}</td><td data-label="Status">${badge(o.status)}</td></tr>`).join(''))}`,[{id:'cancelArchive',label:'Cancelar'},{id:'confirmArchive',label:'Confirmar e gerar Excel',cls:'primary'}]);
   $('cancelArchive').onclick=closeModal;
   $('confirmArchive').onclick=()=>{
     const a=pendingArchive;if(!a)return;const ts=nowText(),existing=new Set(db.Historico.map(r=>r['ID do pedido']+'|'+r.Produto));
