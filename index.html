@@ -257,6 +257,17 @@ details summary{cursor:pointer;color:var(--muted);font-size:12px;margin:2px 0 10
 }
 @media(max-width:420px){.brand small{display:none}.userlabel{max-width:84px}}
 .cobimg{display:block;max-width:260px;width:100%;border:1px solid var(--line);border-radius:12px}
+.dashhead{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.cyclesel{display:inline-flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:3px 4px 3px 13px;font-size:12px;font-weight:700;max-width:100%}
+.cyclesel select{border:0;background:transparent;font-weight:600;padding:6px 8px;max-width:min(340px,60vw);text-overflow:ellipsis}
+.badge.cy-cur{background:var(--green-soft);color:var(--green)}.badge.cy-next{background:var(--blue-soft);color:var(--blue-ink)}.badge.cy-end{background:var(--gray-soft);color:var(--muted)}
+.periodcard.cur{border-color:var(--blue);box-shadow:0 0 0 1px var(--blue) inset}
+.periodcard p b{font-variant-numeric:tabular-nums}
+.grid2f{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.bar{height:10px;border-radius:10px;background:var(--amber-bar);overflow:hidden}.bar>div{height:100%;background:var(--blue)}
+.cyhead{margin:18px 0 6px;font-size:14px}
+@media(max-width:1100px){.grid2f{grid-template-columns:1fr}}
+@media(max-width:900px){.cyclesel{flex:1 1 100%}.cyclesel select{flex:1;max-width:none}.dashhead .primary{width:100%}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -283,6 +294,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:12px;margin:2px 0 10
     <button data-page="pedidos"><span class="ico">▤</span>Pedidos<span class="count" id="navCount">0</span></button>
     <button data-page="cobrar"><span class="ico">＄</span>Cobrar</button>
     <button data-page="pagamentos"><span class="ico">↗</span>Pagamentos</button>
+    <button data-page="financeiro"><span class="ico">▲</span>Financeiro</button>
     <button data-page="produtos"><span class="ico">◫</span>Produtos</button>
     <button data-page="desistencias"><span class="ico">↩</span>Desistências<span class="count" id="desCount">0</span></button>
     <button data-page="historico"><span class="ico">◷</span>Histórico</button>
@@ -296,7 +308,9 @@ details summary{cursor:pointer;color:var(--muted);font-size:12px;margin:2px 0 10
   <header class="topbar">
     <div><h1 id="pageTitle">Dashboard</h1><p class="sub" id="pageSub">Visão geral dos pedidos e recebimentos.</p></div>
     <div class="actions">
-      <span class="periodpill" id="periodPill">Nenhum período aberto</span>
+      <span class="periodpill" id="periodPill">Sem Semana Atual</span>
+      <span class="periodpill hidden" id="nextPill" style="background:var(--gray-soft);color:var(--ink)"></span>
+      <label class="cyclesel hidden" id="cycleWrap"><span>Ciclo</span><select id="cycleSelect" aria-label="Ciclo em foco"></select></label>
       <button class="syncchip" id="syncChip" data-state="idle" title="Clique para atualizar agora"><span class="sdot"></span><span id="syncText">Aguardando sincronização</span></button>
       <button class="syncchip hidden" id="remoteChip" data-state="idle" title="Banco de dados online (planilha)"><span class="sdot"></span><span id="remoteText">Banco: conectando…</span></button>
     </div>
@@ -304,6 +318,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:12px;margin:2px 0 10
   <div id="globalNotice" class="notice info hidden"><span id="noticeText"></span><button id="noticeClose" aria-label="Fechar aviso">×</button></div>
 
   <section class="section active" id="page-dashboard">
+    <div class="dashhead"><div id="dashHead"></div><button class="primary" id="newWeekBtn">▶ Iniciar Nova Semana</button></div>
     <div class="cards" id="dashboardCards"></div>
     <div class="grid2">
       <div class="panel"><div class="panelhead"><h2>Recebimentos</h2></div><div class="panelbody"><div class="donutwrap" id="donutBox"></div></div></div>
@@ -318,7 +333,6 @@ details summary{cursor:pointer;color:var(--muted);font-size:12px;margin:2px 0 10
       <div class="toolbar">
         <input id="searchOrders" class="search" placeholder="Pesquisar pessoa, produto ou ID…  ( / )">
         <div class="chips" id="statusChips"></div>
-        <select id="filterPeriod"><option value="">Todos os períodos</option></select>
         <select id="sortOrders"><option value="date-desc">Mais recentes</option><option value="date-asc">Mais antigos</option><option value="name-asc">Nome A–Z</option><option value="total-desc">Maior valor</option><option value="total-asc">Menor valor</option></select>
         <button class="primary" id="newOrderBtn">＋ Novo pedido</button>
       </div>
@@ -349,6 +363,13 @@ details summary{cursor:pointer;color:var(--muted);font-size:12px;margin:2px 0 10
     </div>
   </section>
 
+  <section class="section" id="page-financeiro">
+    <div id="finHist" style="margin-bottom:16px"></div>
+    <div class="grid2f"><div id="finCur"></div><div id="finNext"></div></div>
+    <div class="panel"><div class="panelhead"><h2>Todos os ciclos</h2><span class="tagline">cada linha é isolada das demais</span></div><div id="finTable"></div></div>
+    <p class="footnote">Valores e status de ciclos diferentes nunca são somados entre si, exceto no faturamento histórico, que reúne somente ciclos já encerrados.</p>
+  </section>
+
   <section class="section" id="page-produtos">
     <div class="cards" id="productCards"></div>
     <div id="unregBox"></div>
@@ -361,7 +382,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:12px;margin:2px 0 10
       </div>
       <div id="productsTable"></div>
     </div>
-    <p class="footnote">“Total pedido” soma as quantidades dos pedidos atuais cujo produto tem o mesmo nome do cadastro. Alterar o valor aqui não muda pedidos já registrados.</p>
+    <p class="footnote">“Total pedido” soma as quantidades dos pedidos do ciclo selecionado cujo produto tem o mesmo nome do cadastro. Alterar o valor aqui não muda pedidos já registrados.</p>
   </section>
 
   <section class="section" id="page-desistencias">
@@ -378,17 +399,17 @@ details summary{cursor:pointer;color:var(--muted);font-size:12px;margin:2px 0 10
   </section>
 
   <section class="section" id="page-historico">
-    <div class="actions" style="margin-bottom:15px"><button class="primary" id="archiveBtn">▣ Salvar histórico</button><button class="outline" id="newPeriodBtn">＋ Abrir novo período</button><button class="outline" id="closePeriodBtn">Encerrar período atual</button></div>
-    <div class="notice info"><span>O arquivamento copia os pedidos para a aba Histórico e gera um novo Excel para download. A planilha de origem nunca é limpa automaticamente.</span></div>
-    <div class="panel" style="margin-bottom:18px"><div class="panelhead"><h2>Pedidos arquivados</h2><span class="tagline" id="historyCount">0 registros</span></div><div id="historyTable"></div></div>
-    <div class="panel"><div class="panelhead"><h2>Períodos</h2></div><div class="panelbody"><div id="periodList" class="periodcards"></div></div></div>
+    <div class="actions" style="margin-bottom:15px"><button class="primary" id="newWeekBtn2">▶ Iniciar Nova Semana</button><button class="outline" id="nextWeekBtn">＋ Criar próxima semana</button><button class="outline" id="archiveBtn">▣ Salvar histórico (Excel)</button></div>
+    <div class="notice info" id="sheetInfo"><span></span></div>
+    <div class="panel" style="margin-bottom:18px"><div class="panelhead"><h2>Pedidos arquivados do ciclo selecionado</h2><span class="tagline" id="historyCount">0 registros</span></div><div id="historyTable"></div></div>
+    <div class="panel"><div class="panelhead"><h2>Ciclos</h2></div><div class="panelbody"><div id="periodList" class="periodcards"></div></div></div>
   </section>
 
   <section class="section" id="page-relatorios">
-    <div class="toolbar" style="padding:0 0 14px;border:0"><select id="reportPeriod"></select><button class="outline" id="exportReportBtn">Exportar CSV</button></div>
+    <div class="toolbar" style="padding:0 0 14px;border:0"><button class="outline" id="exportReportBtn">Exportar CSV do ciclo</button></div>
     <div class="cards" id="reportCards"></div>
     <div class="panel"><div class="panelhead"><h2>Resumo por pessoa</h2></div><div id="reportTable"></div></div>
-    <p class="footnote">Os relatórios usam os pedidos atuais e os arquivados. Pedidos sem valor disponível não são estimados.</p>
+    <p class="footnote">Os relatórios usam apenas o ciclo selecionado no topo (pedidos atuais e arquivados daquele ciclo).</p>
   </section>
 
   <section class="section" id="page-config">
@@ -427,7 +448,6 @@ details summary{cursor:pointer;color:var(--muted);font-size:12px;margin:2px 0 10
     <div class="panel" style="margin-bottom:16px"><div class="panelhead"><h2>Importação manual</h2></div>
       <div class="settingblock"><p>Use se a API estiver fora do ar: exporte a Página1 do Google Sheets como Excel ou CSV e importe aqui.</p><div class="actions"><input type="file" id="importSourceInput" accept=".xlsx,.xls,.csv" class="hidden"><button class="outline" id="importSourceBtn">Importar Excel ou CSV</button></div></div>
     </div>
-    <div class="panel"><div class="panelhead"><h2>Período atual</h2></div><div class="settingblock"><div class="two"><div><div class="field"><label for="periodName">Nome do período</label><input id="periodName" placeholder="Ex.: Pedidos de outubro/2026"></div><div class="field"><label for="periodStart">Data de abertura</label><input type="date" id="periodStart"></div></div><div><div class="field"><label for="periodEnd">Data de encerramento (opcional)</label><input type="date" id="periodEnd"></div><div class="field"><label for="periodState">Status</label><select id="periodState"><option value="Aberto">Aberto</option><option value="Encerrado">Encerrado</option></select></div></div></div><button class="primary" id="savePeriodSettings">Salvar período</button></div></div>
   </section>
 </main>
 </div>
@@ -465,7 +485,7 @@ const DB_HEADERS={
 const emptyDb=()=>({Pedidos:[],Historico:[],Periodos:[],Produtos:[],Desistencias:[],Pagamentos:[],Configuracoes:[]});
 
 let db=emptyDb(), dbName='', pendingArchive=null, currentPage='dashboard';
-let settings={auto:true,interval:30,sound:false,theme:'auto',api:DEFAULT_API,lastExport:'',dbApi:DEFAULT_DB_API,dbToken:DEFAULT_DB_TOKEN,dbLinked:''};
+let settings={auto:true,interval:30,sound:false,theme:'auto',api:DEFAULT_API,lastExport:'',dbApi:DEFAULT_DB_API,dbToken:DEFAULT_DB_TOKEN,dbLinked:'',viewCycle:'__atual'};
 const R={ver:{},hash:{},state:'idle',lastOk:null,conflict:false,err:''};
 const AUTH_KEY='fp_auth_v1';
 const authStore={
@@ -475,6 +495,7 @@ const authStore={
 let auth=authStore.get(), started=false;
 const PIX_DEFAULT={key:'a6709214-04e1-46ee-979a-ba63b52d52bb',name:'ERIC MEIRA OLIVEIRA SILVA',bank:'CLOUDWALK IP LTDA',city:'MANOEL VITORINO'};
 let statusFilter='', shownOrders=60;
+let lastParsed=[];
 let syncing=false, syncState='idle', lastSync=null, lastHash='', fails=0, timer=null, nextAt=0, unseen=0;
 const fresh=new Set(), orphans=new Set();
 const baseTitle=document.title;
@@ -493,7 +514,40 @@ const slug=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLo
 const num=v=>{if(typeof v==='number')return v;if(v==null||v==='')return 0;let s=String(v).replace(/[R$\s]/g,'');if(s.includes(',')&&s.includes('.'))s=s.replace(/\./g,'').replace(',','.');else if(s.includes(','))s=s.replace(',','.');const n=Number(s);return Number.isFinite(n)?n:0};
 const dateVal=v=>{if(!v)return '';if(v instanceof Date)return isoDate(v);if(typeof v==='number'&&v>20000&&v<80000&&window.XLSX){const d=XLSX.SSF.parse_date_code(v);return d?`${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`:''}const s=String(v).trim();const m=s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})/);if(m)return `${m[3].length===2?'20'+m[3]:m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;return /^\d{4}-\d{2}-\d{2}/.test(s)?s.slice(0,10):''};
 const newId=()=>`PED-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2,6).toUpperCase()}`;
-const activePeriod=()=>db.Periodos.find(p=>p.Status==='Aberto');
+/* ---------- ciclos (semanas) ---------- */
+const CYCLE_PAGES=['pedidos','cobrar','pagamentos','produtos','desistencias','relatorios','historico'];
+const currentPeriod=()=>db.Periodos.find(p=>p.Status==='Atual');
+const nextPeriod=()=>db.Periodos.find(p=>p.Status==='Próxima');
+const activePeriod=currentPeriod;
+const cid=p=>p?p['ID do período']:'';
+const periodById=id=>db.Periodos.find(p=>p['ID do período']===id);
+const cycleLabel=p=>({'Atual':'Semana Atual','Próxima':'Próxima Semana','Encerrado':'Encerrado'}[p&&p.Status]||'—');
+const cycleBadge=p=>`<span class="badge cy-${p.Status==='Atual'?'cur':p.Status==='Próxima'?'next':'end'}">${esc(cycleLabel(p))}</span>`;
+const newCycleId=()=>'PER-'+Date.now().toString(36).toUpperCase();
+function cfgGet(k){const r=db.Configuracoes.find(x=>x.Chave===k);return r?String(r.Valor??''):''}
+function cfgSet(k,v){const r=db.Configuracoes.find(x=>x.Chave===k);if(r)r.Valor=v;else db.Configuracoes.push({Chave:k,Valor:v})}
+// legado: "Aberto" vira "Atual"; só pode haver uma Semana Atual e uma Próxima Semana
+function normalizePeriods(){
+  let cur=false,nxt=false;
+  db.Periodos.forEach(p=>{
+    if(p.Status==='Aberto')p.Status='Atual';
+    if(p.Status==='Atual'){if(cur)p.Status='Encerrado';else cur=true}
+    else if(p.Status==='Próxima'){if(nxt)p.Status='Encerrado';else nxt=true}
+    else if(p.Status!=='Encerrado')p.Status='Encerrado';
+  });
+}
+function periodSorted(){const o={'Atual':0,'Próxima':1,'Encerrado':2};return db.Periodos.slice().sort((a,b)=>o[a.Status]-o[b.Status]||String(b['Data de abertura']).localeCompare(String(a['Data de abertura'])))}
+function viewCycleId(){const v=settings.viewCycle;if(v&&v!=='__atual'&&periodById(v))return v;return cid(currentPeriod())}
+const viewPeriod=()=>periodById(viewCycleId());
+// linhas de um ciclo (pedidos atuais + arquivados, sem duplicar)
+function cycleRows(id){return id?allRows().filter(r=>r['ID do período']===id):[]}
+// ciclo que recebe os pedidos da planilha do Google
+function sheetCycle(){const p=periodById(cfgGet('sheet_cycle'));return p&&p.Status!=='Encerrado'?p:currentPeriod()}
+function mondayOf(d){const x=new Date((d||isoDate())+'T00:00:00'),wd=(x.getDay()+6)%7;x.setDate(x.getDate()-wd);return isoDate(x)}
+function nextMondayISO(){const t=new Date(mondayOf(isoDate())+'T00:00:00');t.setDate(t.getDate()+7);return isoDate(t)}
+const weekName=d=>'Semana de '+fmtDate(mondayOf(d)).slice(0,5);
+function defaultNewWeek(){const wd=(new Date().getDay()+6)%7;return wd<=2?isoDate():nextMondayISO()}
+
 const periodName=pid=>db.Periodos.find(p=>p['ID do período']===pid)?.Nome||'—';
 
 /* ---------- dados ---------- */
@@ -536,10 +590,10 @@ function migrateLegacyPayments(){
   });
 }
 function ensurePeriod(){
-  let p=activePeriod();if(p)return p['ID do período'];
-  const pid='PER-'+isoDate().replaceAll('-','');
-  db.Periodos.push({'ID do período':pid,Nome:'Período '+fmtDate(isoDate()),'Data de abertura':isoDate(),'Data de encerramento':'',Status:'Aberto','Arquivado em':''});
-  return pid;
+  const p=currentPeriod();if(p)return cid(p);
+  const base='PER-'+isoDate().replaceAll('-','');let id=base,k=1;while(periodById(id))id=base+'-'+(++k);
+  db.Periodos.push({'ID do período':id,Nome:weekName(isoDate()),'Data de abertura':isoDate(),'Data de encerramento':'',Status:'Atual','Arquivado em':''});
+  return id;
 }
 function normalizeOrder(o,preserve){
   const rows=Array.isArray(o.items)&&o.items.length?o.items:[{product:o.product||'Produto não informado',qty:o.qty??1,unit:o.unit??o.total,subtotal:o.subtotal??o.total}];
@@ -605,11 +659,12 @@ const stat=(l,v,s,cls='')=>`<div class="stat"><span class="lbl">${l}</span><stro
 
 /* ---------- telas ---------- */
 function renderDashboard(){
-  const c=calc(db.Pedidos),pct=c.total?Math.round(c.paid/c.total*100):0;
+  const cur=currentPeriod(),rows=cur?cycleRows(cid(cur)):[],c=calc(rows),pct=c.total?Math.round(c.paid/c.total*100):0;
+  $('dashHead').innerHTML=cur?`Mostrando somente a <b>Semana Atual</b>: ${esc(cur.Nome)}`:'<b>Nenhuma Semana Atual.</b> Clique em “Iniciar Nova Semana”.';
   $('dashboardCards').innerHTML=[
-    stat('Pedidos',c.groups.length,'no período atual'),
+    stat('Pedidos',c.groups.length,'na Semana Atual'),
     stat('Pessoas',c.people,'com pedidos'),
-    stat('Total do período',money(c.total),'valor bruto'),
+    stat('Total da semana',money(c.total),'valor bruto'),
     stat('Recebido',money(c.paid),`${pct}% do total · ${c.paidCount} pedido(s)`,'positive'),
     stat('A receber',money(c.pending),`${c.pendingCount} pedido(s) em aberto`,c.pending?'negative':''),
   ].join('');
@@ -621,44 +676,42 @@ function renderDashboard(){
   ordersTable(c.groups.slice().sort((a,b)=>b.i-a.i).slice(0,6),'recentTable',true);
 }
 function renderOrders(){
-  let g=orderGroups(db.Pedidos);
-  const q=$('searchOrders').value.toLowerCase(),p=$('filterPeriod').value;
+  let g=orderGroups(cycleRows(viewCycleId()));
+  const q=$('searchOrders').value.toLowerCase();
   const counts={'':g.length,Pendente:g.filter(o=>o.status==='Pendente').length,Parcial:g.filter(o=>o.status==='Parcial').length,Pago:g.filter(o=>o.status==='Pago').length};
   $('statusChips').innerHTML=[['','Todos'],['Pendente','Pendentes'],['Parcial','Parciais'],['Pago','Pagos']].map(([k,l])=>`<button class="chip ${statusFilter===k?'on':''}" data-chip="${k}">${l} ${counts[k]}</button>`).join('');
-  g=g.filter(o=>(!q||[o.name,o.id,...o.items.map(i=>i.product)].join(' ').toLowerCase().includes(q))&&(!statusFilter||o.status===statusFilter)&&(!p||o.period===p));
+  g=g.filter(o=>(!q||[o.name,o.id,...o.items.map(i=>i.product)].join(' ').toLowerCase().includes(q))&&(!statusFilter||o.status===statusFilter));
   const s=$('sortOrders').value;
   g.sort((a,b)=>s==='date-asc'?a.date.localeCompare(b.date)||a.i-b.i:s==='name-asc'?a.name.localeCompare(b.name):s==='total-desc'?b.total-a.total:s==='total-asc'?a.total-b.total:b.date.localeCompare(a.date)||b.i-a.i);
   ordersTable(g,'ordersTable',true,shownOrders);
-  const cur=$('filterPeriod').value;
-  $('filterPeriod').innerHTML='<option value="">Todos os períodos</option>'+db.Periodos.map(x=>`<option value="${esc(x['ID do período'])}">${esc(x.Nome)}</option>`).join('');
-  $('filterPeriod').value=cur;
-  $('navCount').textContent=counts.Pendente+counts.Parcial;
-  $('navCount').title='Pedidos em aberto';
+  const cc=currentPeriod()?calc(cycleRows(cid(currentPeriod()))):null;
+  $('navCount').textContent=cc?cc.pendingCount:0;
+  $('navCount').title='Pedidos em aberto na Semana Atual';
 }
 function peopleSummary(rows){
   const m={};
   orderGroups(rows).forEach(o=>{const k=slug(o.name)||o.name;const x=m[k]||(m[k]={name:o.name,count:0,total:0,paid:0,open:0,openIds:[]});x.count++;x.total+=o.total;x.paid+=Math.min(o.paid,o.total);x.open+=o.balance;if(o.balance>0.004)x.openIds.push(o.id)});
   return Object.values(m).sort((a,b)=>b.open-a.open||b.total-a.total);
 }
-function personOpen(name){
-  const orders=orderGroups(db.Pedidos).filter(o=>slug(o.name)===slug(name)&&o.balance>0.004).sort((a,b)=>a.date.localeCompare(b.date)||a.i-b.i);
+function personOpen(name,cycleId){
+  const orders=orderGroups(cycleRows(cycleId||viewCycleId())).filter(o=>slug(o.name)===slug(name)&&o.balance>0.004).sort((a,b)=>a.date.localeCompare(b.date)||a.i-b.i);
   const it={};orders.forEach(o=>o.items.forEach(i=>{const k=slug(i.product),x=it[k]||(it[k]={product:i.product,qty:0,sub:0});x.qty+=i.qty;x.sub+=i.subtotal}));
   return {orders,items:Object.values(it),total:sum(orders,o=>o.total),paid:sum(orders,o=>Math.min(o.paid,o.total)),due:sum(orders,o=>o.balance)};
 }
 function methodTotals(){
-  const ids=new Set(db.Pedidos.map(r=>r['ID do pedido'])),t={};METHODS.forEach(m=>t[m]=0);
+  const ids=new Set(cycleRows(viewCycleId()).map(r=>r['ID do pedido'])),t={};METHODS.forEach(m=>t[m]=0);
   db.Pagamentos.forEach(p=>{if(ids.has(p['ID do pedido'])&&t[p.Forma]!==undefined)t[p.Forma]+=num(p.Valor)});
   return t;
 }
 function renderPayments(){
-  const c=calc(db.Pedidos),all=peopleSummary(db.Pedidos),mt=methodTotals();
+  const rows=cycleRows(viewCycleId()),c=calc(rows),all=peopleSummary(rows),mt=methodTotals();
   $('paymentCards').innerHTML=[stat('Valor total',money(c.total)),stat('Recebido',money(c.paid),'','positive'),stat('Em aberto',money(c.pending),'','negative'),stat('Pessoas devendo',all.filter(x=>x.open>0.004).length,`de ${all.length}`),stat('Recebido em dinheiro',money(mt['Dinheiro'])),stat('Recebido no Pix',money(mt['Pix'])),stat('Recebido no cartão',money(mt['Cartão']))].join('');
   const q=$('searchPayments').value.toLowerCase(),f=$('filterPayment').value;
   const list=all.filter(x=>(!q||x.name.toLowerCase().includes(q))&&(!f||(f==='aberto'?x.open>0.004:x.open<=0.004)));
   $('paymentsTable').innerHTML=list.length?table(['Pessoa','Pedidos','Total','Pago','Em aberto','Situação','Ações'],list.map(x=>`<tr><td data-label="Pessoa"><span class="person" data-extrato="${esc(x.name)}">${esc(x.name)}</span></td><td data-label="Pedidos">${x.count}</td><td class="money" data-label="Total">${money(x.total)}</td><td class="money positive" data-label="Pago">${money(x.paid)}</td><td class="money ${x.open>0.004?'negative':''}" data-label="Em aberto">${money(x.open)}</td><td data-label="Situação">${badge(x.open>0.004?(x.paid>0.004?'Parcial':'Pendente'):'Quitado')}</td><td data-label=""><div class="rowbuttons"><button class="outline small" data-extrato="${esc(x.name)}">Extrato</button>${x.open>0.004?`<button class="outline small" data-cobrar="${esc(x.name)}">Cobrar</button><button class="primary small" data-receber="${esc(x.name)}">Receber</button>`:''}</div></td></tr>`).join('')):'<div class="empty"><b>Ninguém nesta lista</b>Ajuste a pesquisa ou o filtro.</div>';
 }
 function renderCobrar(){
-  const c=calc(db.Pedidos),all=peopleSummary(db.Pedidos);
+  const rows=cycleRows(viewCycleId()),c=calc(rows),all=peopleSummary(rows);
   $('pixCard').innerHTML=pixInfoHtml();
   $('cobrarCards').innerHTML=[stat('A receber',money(c.pending),'','negative'),stat('Recebido',money(c.paid),'','positive'),stat('Pessoas devendo',all.filter(x=>x.open>0.004).length,`de ${all.length}`)].join('');
   const q=$('searchCobrar').value.toLowerCase(),f=$('filterCobrar').value;
@@ -671,34 +724,56 @@ function renderCobrar(){
     ${open?`<div class="rowbuttons"><button class="primary small" data-cobrar="${esc(x.name)}">Cobrar (QR Pix)</button><button class="outline small" data-receber="${esc(x.name)}">Receber</button></div>`:''}</div>`}).join(''):'<div class="empty" style="grid-column:1/-1"><b>Ninguém para cobrar</b>Todos os pedidos estão quitados ou ainda não há pedidos.</div>';
 }
 function renderHistory(){
-  const g=orderGroups(db.Historico);
-  $('historyCount').textContent=`${g.length} pedidos • ${db.Historico.length} linhas`;
+  const vid=viewCycleId(),g=orderGroups(db.Historico.filter(r=>r['ID do período']===vid));
+  $('historyCount').textContent=`${g.length} pedido(s) arquivado(s)`;
   ordersTable(g.sort((a,b)=>b.date.localeCompare(a.date)),'historyTable',false,80);
-  $('periodList').innerHTML=db.Periodos.length?db.Periodos.slice().reverse().map(p=>{
-    const rows=allRows().filter(r=>r['ID do período']===p['ID do período']),gs=orderGroups(rows);
-    return `<div class="periodcard"><div class="statusline"><h3>${esc(p.Nome)}</h3>${badge(p.Status)}</div><p>Abertura: ${fmtDate(p['Data de abertura'])}</p><p>Encerramento: ${fmtDate(p['Data de encerramento'])}</p><p>Pedidos: ${gs.length}</p><p><strong>${money(sum(gs,o=>o.total))}</strong></p>${p['Arquivado em']?`<p>Arquivado: ${esc(p['Arquivado em'])}</p>`:''}</div>`}).join(''):'<div class="empty">Nenhum período cadastrado.</div>';
+  const sc=sheetCycle();
+  $('sheetInfo').firstElementChild.innerHTML=sc?`A planilha do Google está alimentando: <b>${esc(cycleLabel(sc))} — ${esc(sc.Nome)}</b>. Pedidos novos dela entram só nesse ciclo.`:'A planilha do Google não está ligada a nenhum ciclo. Use “Iniciar Nova Semana”.';
+  $('periodList').innerHTML=db.Periodos.length?periodSorted().map(p=>{
+    const id=cid(p),c=calc(cycleRows(id)),isSheet=sc&&id===cid(sc);
+    return `<div class="periodcard ${p.Status==='Atual'?'cur':''}"><div class="statusline"><h3>${esc(p.Nome)}</h3>${cycleBadge(p)}</div><p>Abertura: ${fmtDate(p['Data de abertura'])}${p['Data de encerramento']?' • Encerrada: '+fmtDate(p['Data de encerramento']):''}</p><p>${c.groups.length} pedido(s) • ${c.people} pessoa(s)</p><p>Vendido <b>${money(c.total)}</b></p><p>Recebido <b class="positive">${money(c.paid)}</b> • A receber <b class="${c.pending>0.004?'negative':''}">${money(c.pending)}</b></p>${isSheet?'<p><span class="badge parcial" style="margin:0">Recebendo da planilha</span></p>':''}${p['Arquivado em']?`<p>Histórico salvo: ${esc(p['Arquivado em'])}</p>`:''}<div class="rowbuttons"><button class="outline small" data-cyedit="${esc(id)}">Editar</button>${p.Status!=='Encerrado'&&!isSheet?`<button class="outline small" data-cysheet="${esc(id)}">Planilha entra aqui</button>`:''}${!c.groups.length&&p.Status!=='Atual'?`<button class="danger small" data-cydel="${esc(id)}">Excluir</button>`:''}</div></div>`}).join(''):'<div class="empty">Nenhum ciclo cadastrado.</div>';
 }
-function reportRows(){const v=$('reportPeriod').value;return v==='__cur'?db.Pedidos:v==='__all'||!v?allRows():allRows().filter(r=>r['ID do período']===v)}
+/* ---------- financeiro ---------- */
+function cycleStats(p){const c=calc(cycleRows(cid(p)));return {p,n:c.groups.length,people:c.people,total:c.total,paid:c.paid,pending:c.pending,pct:c.total?Math.round(c.paid/c.total*100):0}}
+function forecastHtml(title,p,empty){
+  if(!p)return `<div class="panel"><div class="panelhead"><h2>${title}</h2></div><div class="empty"><b>${empty[0]}</b>${empty[1]}<div style="margin-top:12px"><button class="outline small" data-gomore="historico">Abrir Ciclos e histórico</button></div></div></div>`;
+  const x=cycleStats(p);
+  return `<div class="panel"><div class="panelhead"><h2>${title}</h2><span class="tagline">${esc(p.Nome)}</span></div><div class="panelbody"><div class="cards" style="margin:0 0 14px">${stat('Total vendido',money(x.total),`${x.n} pedido(s) • ${x.people} pessoa(s)`)}${stat('Já recebido',money(x.paid),`${x.pct}% do vendido`,'positive')}${stat('A receber',money(x.pending),'previsão de entrada',x.pending>0.004?'negative':'')}</div><div class="bar" role="img" aria-label="${x.pct}% recebido"><div style="width:${x.pct}%"></div></div></div></div>`;
+}
+function renderFinance(){
+  const ended=db.Periodos.filter(p=>p.Status==='Encerrado').map(cycleStats);
+  const h={n:sum(ended,x=>x.n),total:sum(ended,x=>x.total),paid:sum(ended,x=>x.paid),pending:sum(ended,x=>x.pending)};
+  $('finHist').innerHTML=`<div class="panel"><div class="panelhead"><h2>Faturamento histórico</h2><span class="tagline">${ended.length} ciclo(s) encerrado(s) • ${h.n} pedido(s)</span></div><div class="panelbody"><div class="cards" style="margin:0">${stat('Faturamento histórico',money(h.total),'valor bruto dos ciclos encerrados')}${stat('Já recebido',money(h.paid),'','positive')}${stat('Pendências antigas',money(h.pending),'ainda a receber de ciclos encerrados',h.pending>0.004?'negative':'')}</div></div></div>`;
+  $('finCur').innerHTML=forecastHtml('Previsão de caixa — Semana Atual',currentPeriod(),['Nenhuma Semana Atual','Use “Iniciar Nova Semana” para começar um ciclo.']);
+  $('finNext').innerHTML=forecastHtml('Previsão de caixa — Próxima Semana',nextPeriod(),['Nenhuma Próxima Semana criada','Crie uma em Ciclos e histórico para registrar vendas antecipadas.']);
+  const known=new Set(db.Periodos.map(cid)),orph=orderGroups(allRows()).filter(o=>!known.has(o.period));
+  const rows=periodSorted().map(cycleStats).map(x=>`<tr><td data-label="Ciclo"><b>${esc(x.p.Nome)}</b></td><td data-label="Situação">${cycleBadge(x.p)}</td><td data-label="Pedidos">${x.n}</td><td class="money" data-label="Vendido">${money(x.total)}</td><td class="money positive" data-label="Recebido">${money(x.paid)}</td><td class="money ${x.pending>0.004?'negative':''}" data-label="A receber">${money(x.pending)}</td></tr>`);
+  if(orph.length){const t=sum(orph,o=>o.total),pd=sum(orph,o=>Math.min(o.paid,o.total));rows.push(`<tr><td data-label="Ciclo"><b>Sem ciclo definido</b></td><td data-label="Situação"><span class="badge cy-end">—</span></td><td data-label="Pedidos">${orph.length}</td><td class="money" data-label="Vendido">${money(t)}</td><td class="money positive" data-label="Recebido">${money(pd)}</td><td class="money" data-label="A receber">${money(t-pd)}</td></tr>`)}
+  $('finTable').innerHTML=rows.length?table(['Ciclo','Situação','Pedidos','Vendido','Recebido','A receber'],rows.join('')):'<div class="empty"><b>Nenhum ciclo ainda</b></div>';
+}
+function reportRows(){return cycleRows(viewCycleId())}
 function renderReports(){
-  const cur=$('reportPeriod').value||'__cur';
-  $('reportPeriod').innerHTML='<option value="__cur">Pedidos atuais</option><option value="__all">Todos os períodos</option>'+db.Periodos.map(p=>`<option value="${esc(p['ID do período'])}">${esc(p.Nome)}</option>`).join('');
-  $('reportPeriod').value=cur;
   const rows=reportRows(),c=calc(rows),ps=peopleSummary(rows);
   $('reportCards').innerHTML=[stat('Pedidos',c.groups.length),stat('Pessoas',c.people),stat('Valor bruto',money(c.total)),stat('Quitado',money(c.paid),'','positive'),stat('Em aberto',money(c.pending),'','negative')].join('');
-  $('reportTable').innerHTML=ps.length?table(['Pessoa','Pedidos','Total','Pago','Pendente'],ps.map(x=>`<tr><td data-label="Pessoa"><span class="person" data-extrato="${esc(x.name)}">${esc(x.name)}</span></td><td data-label="Pedidos">${x.count}</td><td class="money" data-label="Total">${money(x.total)}</td><td class="money positive" data-label="Pago">${money(x.paid)}</td><td class="money negative" data-label="Pendente">${money(x.open)}</td></tr>`).join('')):'<div class="empty"><b>Sem dados para relatório</b>Importe pedidos para gerar os indicadores.</div>';
+  $('reportTable').innerHTML=ps.length?table(['Pessoa','Pedidos','Total','Pago','Pendente'],ps.map(x=>`<tr><td data-label="Pessoa"><span class="person" data-extrato="${esc(x.name)}">${esc(x.name)}</span></td><td data-label="Pedidos">${x.count}</td><td class="money" data-label="Total">${money(x.total)}</td><td class="money positive" data-label="Pago">${money(x.paid)}</td><td class="money negative" data-label="Pendente">${money(x.open)}</td></tr>`).join('')):'<div class="empty"><b>Sem dados para relatório</b>Este ciclo ainda não tem pedidos.</div>';
+}
+function renderCycleSelect(){
+  const sel=$('cycleSelect'),cur=viewCycleId();
+  sel.innerHTML=periodSorted().map(p=>`<option value="${esc(cid(p))}">${esc(cycleLabel(p))} — ${esc(p.Nome)}</option>`).join('')||'<option value="">Nenhum ciclo</option>';
+  sel.value=cur;
 }
 function setDbStatus(){
-  const p=activePeriod();
+  const p=currentPeriod(),n=nextPeriod();
   $('dbStatus').textContent=remoteOn()?'Banco online conectado':(dbName||'Dados salvos neste navegador');
   $('dbSub').textContent=`${db.Pedidos.length} linhas de pedido • ${db.Historico.length} históricas`;
   $('dbFileInfo').textContent=`${db.Pedidos.length} linhas atuais • ${db.Historico.length} históricas${dbName?' • arquivo: '+dbName:''}.`;
   $('lastExport').textContent=settings.lastExport?`Último Excel gerado: ${settings.lastExport}.`:'Nenhum Excel gerado ainda — baixe um backup para guardar o histórico.';
-  $('periodPill').textContent=p?'● '+p.Nome:'● Nenhum período aberto';
-  $('periodName').value=p?.Nome||'';$('periodStart').value=p?.['Data de abertura']||isoDate();$('periodEnd').value=p?.['Data de encerramento']||'';$('periodState').value=p?.Status||'Aberto';
+  $('periodPill').textContent=p?'● Semana Atual: '+p.Nome:'● Sem Semana Atual';
+  const np=$('nextPill');np.classList.toggle('hidden',!n);if(n)np.textContent='Próxima: '+n.Nome;
 }
-function renderAll(){migrateLegacyPayments();syncStatusColumns();renderDashboard();renderOrders();renderPayments();renderCobrar();renderProducts();renderDesistencias();renderHistory();renderReports();setDbStatus();persist()}
-const LABELS={dashboard:['Dashboard','Visão geral dos pedidos e recebimentos.'],pedidos:['Pedidos','Pedidos do período atual, atualizados automaticamente.'],cobrar:['Cobrar','Quanto cada pessoa deve e a chave Pix para receber.'],pagamentos:['Pagamentos','Receba valores totais ou parciais e veja a forma de pagamento.'],historico:['Histórico','Arquive períodos e consulte compras anteriores.'],produtos:['Produtos','Cadastro de produtos e total pedido de cada um.'],desistencias:['Desistências','Itens e pedidos que saíram da planilha.'],relatorios:['Relatórios','Indicadores por pessoa e período.'],config:['Configurações','Atualização automática, Excel e período.']};
-function go(page){currentPage=page;document.querySelectorAll('.nav button,.bottomnav button[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===page));document.querySelectorAll('.section').forEach(s=>s.classList.toggle('active',s.id==='page-'+page));$('pageTitle').textContent=LABELS[page][0];$('pageSub').textContent=LABELS[page][1];{const mb=$('moreBtn');if(mb)mb.classList.toggle('active',!['dashboard','pedidos','cobrar','pagamentos'].includes(page))}if(page==='config')fillPixFields();window.scrollTo(0,0)}
+function renderAll(){normalizePeriods();migrateLegacyPayments();syncStatusColumns();renderCycleSelect();renderDashboard();renderOrders();renderPayments();renderCobrar();renderFinance();renderProducts();renderDesistencias();renderHistory();renderReports();setDbStatus();persist()}
+const LABELS={dashboard:['Dashboard','Somente a Semana Atual.'],pedidos:['Pedidos','Pedidos do ciclo selecionado, atualizados automaticamente.'],cobrar:['Cobrar','Quanto cada pessoa deve no ciclo selecionado e a chave Pix.'],pagamentos:['Pagamentos','Receba valores totais ou parciais e veja a forma de pagamento.'],financeiro:['Financeiro','Faturamento histórico e previsão de caixa por ciclo.'],historico:['Ciclos e histórico','Inicie novas semanas, veja cada ciclo e salve o histórico.'],produtos:['Produtos','Cadastro de produtos e total pedido de cada um no ciclo.'],desistencias:['Desistências','Itens e pedidos que saíram da planilha neste ciclo.'],relatorios:['Relatórios','Indicadores por pessoa no ciclo selecionado.'],config:['Configurações','Atualização automática, banco, Pix e Excel.']};
+function go(page){currentPage=page;document.querySelectorAll('.nav button,.bottomnav button[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===page));document.querySelectorAll('.section').forEach(s=>s.classList.toggle('active',s.id==='page-'+page));$('pageTitle').textContent=LABELS[page][0];$('pageSub').textContent=LABELS[page][1];{const mb=$('moreBtn');if(mb)mb.classList.toggle('active',!['dashboard','pedidos','cobrar','pagamentos'].includes(page))}if(page==='config')fillPixFields();$('cycleWrap').classList.toggle('hidden',!CYCLE_PAGES.includes(page));window.scrollTo(0,0)}
 
 /* ---------- modais ---------- */
 let modalPushed=false,ignorePop=false;
@@ -719,11 +794,11 @@ function openDetails(orderId){
   const o=orderGroups(allRows()).find(x=>x.id===orderId);if(!o)return;
   const cur=db.Pedidos.some(r=>r['ID do pedido']===orderId);
   const pays=o.payments.length?table(['Data','Forma','Valor','Por',''],o.payments.map(p=>`<tr><td data-label="Data">${fmtDate(p.Data)}</td><td data-label="Forma">${esc(p.Forma||'—')}</td><td class="money" data-label="Valor">${money(num(p.Valor))}</td><td data-label="Por">${esc(p['Registrado por']||'—')}</td><td data-label=""><button class="danger small" data-delpay="${esc(p['ID do pagamento'])}">Estornar</button></td></tr>`).join('')):'<p class="muted">Nenhum pagamento registrado.</p>';
-  showModal('Detalhes do pedido',`<div class="two"><div><span class="muted">Pessoa</span><h3 style="margin:2px 0 10px">${esc(o.name)}</h3></div><div><span class="muted">Status</span><p style="margin:4px 0">${badge(o.status)}</p></div><div><span class="muted">Data do pedido</span><p style="margin:2px 0">${fmtDate(o.date)}</p></div><div><span class="muted">Pago / saldo</span><p style="margin:2px 0"><b class="positive">${money(Math.min(o.paid,o.total))}</b> / <b class="${o.balance>0.004?'negative':''}">${money(o.balance)}</b></p></div></div><div class="splitline"></div>${table(['Produto','Qtd.','Unitário','Subtotal'],o.items.map(i=>`<tr><td data-label="Produto">${esc(i.product)}</td><td data-label="Qtd.">${i.qty}</td><td data-label="Unitário">${money(i.unit)}</td><td data-label="Subtotal">${money(i.subtotal)}</td></tr>`).join(''))}<p class="money" style="text-align:right;margin-top:16px">Total: ${money(o.total)}</p><div class="splitline"></div><h3 style="margin:0 0 8px;font-size:14px">Pagamentos</h3>${pays}<p class="muted">ID: ${esc(o.id)} • Período: ${esc(periodName(o.period))} • Origem: ${esc(o.source||'—')}</p>${o.notes?`<p>Observações: ${esc(o.notes)}</p>`:''}`,[{id:'detailClose',label:'Fechar'}].concat(cur&&o.balance>0.004?[{id:'detailPay',label:'Receber pagamento',cls:'primary'}]:[]));
-  $('detailClose').onclick=closeModal;if($('detailPay'))$('detailPay').onclick=()=>payOrder(orderId);
+  showModal('Detalhes do pedido',`<div class="two"><div><span class="muted">Pessoa</span><h3 style="margin:2px 0 10px">${esc(o.name)}</h3></div><div><span class="muted">Status</span><p style="margin:4px 0">${badge(o.status)}</p></div><div><span class="muted">Data do pedido</span><p style="margin:2px 0">${fmtDate(o.date)}</p></div><div><span class="muted">Pago / saldo</span><p style="margin:2px 0"><b class="positive">${money(Math.min(o.paid,o.total))}</b> / <b class="${o.balance>0.004?'negative':''}">${money(o.balance)}</b></p></div></div><div class="splitline"></div>${table(['Produto','Qtd.','Unitário','Subtotal'],o.items.map(i=>`<tr><td data-label="Produto">${esc(i.product)}</td><td data-label="Qtd.">${i.qty}</td><td data-label="Unitário">${money(i.unit)}</td><td data-label="Subtotal">${money(i.subtotal)}</td></tr>`).join(''))}<p class="money" style="text-align:right;margin-top:16px">Total: ${money(o.total)}</p><div class="splitline"></div><h3 style="margin:0 0 8px;font-size:14px">Pagamentos</h3>${pays}<p class="muted">ID: ${esc(o.id)} • Ciclo: ${esc(periodName(o.period))} • Origem: ${esc(o.source||'—')}</p>${o.source===MANUAL?'':'<p class="muted">Pedido vindo da planilha: o ciclo é definido pela planilha (veja Ciclos e histórico).</p>'}${o.notes?`<p>Observações: ${esc(o.notes)}</p>`:''}`,[{id:'detailClose',label:'Fechar'}].concat(cur&&o.source===MANUAL?[{id:'detailEdit',label:'Editar pedido'}]:[]).concat(cur&&o.balance>0.004?[{id:'detailPay',label:'Receber pagamento',cls:'primary'}]:[]));
+  $('detailClose').onclick=closeModal;if($('detailPay'))$('detailPay').onclick=()=>payOrder(orderId);if($('detailEdit'))$('detailEdit').onclick=()=>newOrder(orderId);
 }
-function payOrder(orderId){const o=orderGroups(db.Pedidos).find(x=>x.id===orderId);if(!o||o.balance<=0.004){toast('Este pedido já está quitado.');return}openPay([o],'Receber pagamento',o.name)}
-function receberPessoa(name){const po=personOpen(name);if(!po.orders.length){toast(name+' não tem valor em aberto.');return}openPay(po.orders,'Receber de '+name,name)}
+function payOrder(orderId){const o=orderGroups(allRows()).find(x=>x.id===orderId);if(!o||o.balance<=0.004){toast('Este pedido já está quitado.');return}openPay([o],'Receber pagamento',o.name)}
+function receberPessoa(name,cycleId){const po=personOpen(name,cycleId);if(!po.orders.length){toast(name+' não tem valor em aberto neste ciclo.');return}openPay(po.orders,'Receber de '+name,name)}
 function openPay(orders,title,who){
   const due=Math.round(sum(orders,o=>o.balance)*100)/100;
   showModal(title,`<p><strong>${esc(who)}</strong> — em aberto: <strong>${money(due)}</strong>${orders.length>1?` (${orders.length} pedidos, do mais antigo ao mais novo)`:''}</p>
@@ -782,8 +857,8 @@ function pixInfoHtml(){
   const c=pixCfg();
   return `<div class="pixwrap"><div class="qrbox">${qrSvg(pixPayload(0),190)}</div><div class="pixinfo"><h2>Receber via Pix</h2><span class="muted">QR Code sem valor — para cobrar um valor, use “Cobrar” na pessoa.</span><dl><dt>Chave Pix</dt><dd class="mono">${esc(c.key)}</dd><dt>Nome</dt><dd>${esc(c.name)}</dd><dt>Banco</dt><dd>${esc(c.bank)}</dd></dl><div class="actions"><button class="primary small" data-copypix="key">Copiar chave</button><button class="outline small" data-copypix="payload">Copiar Pix copia e cola</button></div></div></div>`;
 }
-function cobrancaTexto(name,payload){
-  const po=personOpen(name),c=pixCfg(),per=activePeriod();
+function cobrancaTexto(name,payload,cycleId){
+  const po=personOpen(name,cycleId),c=pixCfg(),per=periodById(cycleId||viewCycleId());
   return `Olá, ${name}! Resumo do seu pedido${per?' ('+per.Nome+')':''}:\n\n`+po.items.map(i=>`• ${i.product} × ${fq(i.qty)} — ${money(i.sub)}`).join('\n')+`\n\nTotal dos pedidos: ${money(po.total)}`+(po.paid>0.004?`\nJá pago: ${money(po.paid)}`:'')+`\nValor a pagar: ${money(po.due)}\n\nPix (chave aleatória): ${c.key}\nNome: ${c.name}\nBanco: ${c.bank}\n\nPix copia e cola:\n${payload}`;
 }
 
@@ -820,13 +895,13 @@ function cobrancaImagem(name,due,payload){
   });
 }
 function downloadBlob(blob,fname){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=fname;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000)}
-function cobrar(name){
-  const po=personOpen(name),c=pixCfg();
-  if(!po.orders.length){toast(name+' não tem valor em aberto.');return}
+function cobrar(name,cycleId){
+  const po=personOpen(name,cycleId),c=pixCfg();
+  if(!po.orders.length){toast(name+' não tem valor em aberto neste ciclo.');return}
   const payload=pixPayload(po.due);
   showModal('Cobrar — '+name,`<div class="cobtop"><div class="qrbox">${qrSvg(payload,200)}</div><div class="pixinfo"><div class="muted">Valor a pagar</div><div class="bigmoney">${money(po.due)}</div><dl><dt>Chave Pix</dt><dd class="mono">${esc(c.key)}</dd><dt>Nome</dt><dd>${esc(c.name)}</dd><dt>Banco</dt><dd>${esc(c.bank)}</dd></dl>${po.paid>0.004?`<span class="muted">Total ${money(po.total)} · já pago ${money(po.paid)}</span>`:''}</div></div>
   <div class="field"><label>Pix copia e cola (já com o valor)</label><textarea id="cobPix" rows="3" readonly>${esc(payload)}</textarea><div><button class="outline small" id="cobCopyPix">Copiar Pix copia e cola</button></div></div>
-  <div class="field"><label>Mensagem para enviar</label><textarea id="cobTxt" rows="10">${esc(cobrancaTexto(name,payload))}</textarea><div><button class="outline small" id="cobCopy">Copiar mensagem</button></div></div>
+  <div class="field"><label>Mensagem para enviar</label><textarea id="cobTxt" rows="10">${esc(cobrancaTexto(name,payload,cycleId))}</textarea><div><button class="outline small" id="cobCopy">Copiar mensagem</button></div></div>
   <div class="field"><label>Imagem com o QR Code (vai junto com a mensagem)</label><img id="cobImg" class="cobimg hidden" alt="Cobrança com QR Code Pix"><span class="muted" id="cobImgWait">Gerando imagem…</span><div><button class="outline small" id="cobDl">Baixar imagem</button></div></div>`,
   [{id:'cobClose',label:'Fechar'},{id:'cobReceive',label:'Receber'},{id:'cobSend',label:'Enviar com imagem',cls:'primary'}]);
   const blobP=cobrancaImagem(name,po.due,payload);
@@ -834,7 +909,7 @@ function cobrar(name){
   $('cobClose').onclick=closeModal;
   $('cobCopyPix').onclick=async()=>{toast(await copyText($('cobPix').value)?'Pix copia e cola copiado.':'Não foi possível copiar.')};
   $('cobCopy').onclick=async()=>{toast(await copyText($('cobTxt').value)?'Mensagem copiada.':'Não foi possível copiar.')};
-  $('cobReceive').onclick=()=>receberPessoa(name);
+  $('cobReceive').onclick=()=>receberPessoa(name,cycleId);
   $('cobDl').onclick=async()=>{const b=await blobP;if(!b){toast('Não foi possível gerar a imagem.');return}downloadBlob(b,'pix-'+(slug(name)||'cobranca')+'.png')};
   $('cobSend').onclick=async()=>{
     const text=$('cobTxt').value,blob=await blobP,wa='https://wa.me/?text='+encodeURIComponent(text);
@@ -850,42 +925,61 @@ function cobrar(name){
   };
 }
 function extrato(name){
-  const gs=orderGroups(allRows()).filter(o=>slug(o.name)===slug(name)).sort((a,b)=>b.date.localeCompare(a.date)||b.i-a.i);
-  const total=sum(gs,o=>o.total),paid=sum(gs,o=>Math.min(o.paid,o.total)),open=sum(gs,o=>o.balance);
-  showModal('Extrato — '+name,`<div class="cards" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr))">${stat('Total',money(total))}${stat('Pago',money(paid),'','positive')}${stat('Em aberto',money(open),'',open>0.004?'negative':'')}</div>${gs.length?table(['Período','Data','Produtos','Total','Pago','Status'],gs.map(o=>`<tr><td data-label="Período">${esc(periodName(o.period))}</td><td data-label="Data">${fmtDate(o.date)}</td><td class="prod" data-label="Produtos">${esc(o.items.map(i=>`${i.product} × ${i.qty}`).join(', '))}</td><td class="money" data-label="Total">${money(o.total)}</td><td class="money" data-label="Pago">${money(Math.min(o.paid,o.total))}</td><td data-label="Status">${badge(o.status)}</td></tr>`).join('')):'<div class="empty">Sem pedidos.</div>'}`,[{id:'exClose',label:'Fechar'}].concat(db.Pedidos.length&&personOpen(name).due>0.004?[{id:'exCob',label:'Cobrar',cls:'primary'}]:[]));
-  $('exClose').onclick=closeModal;if($('exCob'))$('exCob').onclick=()=>cobrar(name);
+  const gs=orderGroups(allRows()).filter(o=>slug(o.name)===slug(name));
+  const by={};gs.forEach(o=>(by[o.period]=by[o.period]||[]).push(o));
+  const ord={'Atual':0,'Próxima':1,'Encerrado':2};
+  const secs=Object.entries(by).map(([id,list])=>({id,p:periodById(id),list})).sort((a,b)=>(ord[a.p?.Status]??3)-(ord[b.p?.Status]??3)||String(b.p?.['Data de abertura']||'').localeCompare(String(a.p?.['Data de abertura']||'')));
+  const html=secs.map(sec=>{
+    const t=sum(sec.list,o=>o.total),pd=sum(sec.list,o=>Math.min(o.paid,o.total)),op=sum(sec.list,o=>o.balance),canPay=op>0.004&&sec.p;
+    return `<h3 class="cyhead">${sec.p?esc(cycleLabel(sec.p))+' — '+esc(sec.p.Nome):'Sem ciclo definido'}</h3><div class="cobsum" style="margin-bottom:8px"><span>Total<b>${money(t)}</b></span><span>Pago<b class="positive">${money(pd)}</b></span><span>Em aberto<b class="${op>0.004?'negative':''}">${money(op)}</b></span></div>${table(['Data','Produtos','Total','Pago','Status'],sec.list.sort((a,b)=>b.date.localeCompare(a.date)||b.i-a.i).map(o=>`<tr><td data-label="Data">${fmtDate(o.date)}</td><td class="prod" data-label="Produtos">${esc(o.items.map(i=>`${i.product} × ${i.qty}`).join(', '))}</td><td class="money" data-label="Total">${money(o.total)}</td><td class="money" data-label="Pago">${money(Math.min(o.paid,o.total))}</td><td data-label="Status">${badge(o.status)}</td></tr>`).join(''))}${canPay?`<div class="rowbuttons" style="margin-top:8px"><button class="outline small" data-cobrar="${esc(name)}" data-cy="${esc(sec.id)}">Cobrar</button><button class="primary small" data-receber="${esc(name)}" data-cy="${esc(sec.id)}">Receber</button></div>`:''}`}).join('');
+  showModal('Extrato — '+name,`<p class="muted" style="margin-top:0">Cada ciclo é mostrado separado — os valores de semanas diferentes não são somados.</p>${html||'<div class="empty">Sem pedidos.</div>'}`,[{id:'exClose',label:'Fechar'}]);
+  $('exClose').onclick=closeModal;
 }
 function openMore(){
-  const items=[['produtos','◫','Produtos'],['desistencias','↩','Desistências'],['historico','◷','Histórico'],['relatorios','▥','Relatórios'],['config','⚙','Configurações']];
+  const items=[['financeiro','▲','Financeiro'],['produtos','◫','Produtos'],['desistencias','↩','Desistências'],['historico','◷','Histórico'],['relatorios','▥','Relatórios'],['config','⚙','Configurações']];
   showModal('Menu',`<div class="moregrid">${items.map(([p,i,l])=>`<button class="outline" data-gomore="${p}">${i} ${l}</button>`).join('')}</div><div class="splitline"></div><div class="actions"><button class="outline" id="moreTheme">Tema: ${({auto:'automático',light:'claro',dark:'escuro'}[settings.theme])}</button><button class="danger" id="moreLogout">Sair${auth?' ('+esc(auth.user)+')':''}</button></div>`,[{id:'moreClose',label:'Fechar'}]);
   $('moreClose').onclick=closeModal;
   $('moreTheme').onclick=()=>{settings.theme={auto:'light',light:'dark',dark:'auto'}[settings.theme];saveSettings();applyTheme();openMore()};
   $('moreLogout').onclick=askLogout;
 }
 
-function newOrder(){
-  const itemRow=()=>`<div class="itemrow"><input class="ip" list="prodList" placeholder="Produto *"><input class="iq" type="number" min=".01" step=".01" value="1" aria-label="Quantidade"><input class="iu" type="number" min="0" step=".01" value="0" aria-label="Valor unitário"><button class="outline small irm" aria-label="Remover item">✕</button></div>`;
-  showModal('Novo pedido',`<div class="two"><div class="field"><label>Nome da pessoa *</label><input id="newName"></div><div class="field"><label>Data do pedido</label><input id="newDate" type="date" value="${isoDate()}"></div></div><datalist id="prodList">${db.Produtos.map(p=>`<option value="${esc(p['Descrição'])}"></option>`).join('')}</datalist><div class="field"><label>Itens (produto · quantidade · valor unitário R$)</label><div id="items">${itemRow()}</div><div><button class="outline small" id="addItem">＋ Adicionar item</button></div></div><div class="field"><label>Observações</label><input id="newNotes"></div><p class="muted">Total: <b id="newTotal">${money(0)}</b></p>`,[{id:'cancelNew',label:'Cancelar'},{id:'confirmNew',label:'Adicionar pedido',cls:'primary'}]);
+function newOrder(editId){
+  const editing=editId?orderGroups(db.Pedidos).find(o=>o.id===editId):null;
+  if(editId&&!editing){toast('Pedido não encontrado.');return}
+  if(!db.Periodos.length)ensurePeriod();
+  const opts=periodSorted().map(p=>`<option value="${esc(cid(p))}">${esc(cycleLabel(p))} — ${esc(p.Nome)}</option>`).join('');
+  const itemRow=it=>`<div class="itemrow"><input class="ip" list="prodList" placeholder="Produto *" value="${esc(it?it.product:'')}"><input class="iq" type="number" min=".01" step=".01" value="${it?it.qty:1}" aria-label="Quantidade"><input class="iu" type="number" min="0" step=".01" value="${it?it.unit:0}" aria-label="Valor unitário"><button class="outline small irm" aria-label="Remover item">✕</button></div>`;
+  showModal(editing?'Editar pedido':'Novo pedido',`<div class="two"><div class="field"><label>Nome da pessoa *</label><input id="newName" value="${esc(editing?editing.name:'')}"></div><div class="field"><label>Data do pedido</label><input id="newDate" type="date" value="${editing&&editing.date?editing.date:isoDate()}"></div></div><div class="field"><label for="newCycle">Ciclo do pedido *</label><select id="newCycle">${opts}</select><span class="muted">Pedido avulso atrasado (ex.: de sábado)? Escolha o ciclo da semana que já fechou.</span></div><datalist id="prodList">${db.Produtos.map(p=>`<option value="${esc(p['Descrição'])}"></option>`).join('')}</datalist><div class="field"><label>Itens (produto · quantidade · valor unitário R$)</label><div id="items">${editing?editing.items.map(itemRow).join(''):itemRow()}</div><div><button class="outline small" id="addItem">＋ Adicionar item</button></div></div><div class="field"><label>Observações</label><input id="newNotes" value="${esc(editing?editing.notes:'')}"></div><p class="muted">Total: <b id="newTotal">${money(0)}</b></p>`,[{id:'cancelNew',label:'Cancelar'},{id:'confirmNew',label:editing?'Salvar pedido':'Adicionar pedido',cls:'primary'}]);
+  $('newCycle').value=editing?editing.period:(viewCycleId()||cid(currentPeriod()));
   const upd=()=>{$('newTotal').textContent=money(sum([...document.querySelectorAll('#items .itemrow')],r=>num(r.querySelector('.iq').value)*num(r.querySelector('.iu').value)))};
+  upd();
   $('items').addEventListener('input',e=>{if(e.target.classList.contains('ip')){const pr=db.Produtos.find(x=>slug(x['Descrição'])===slug(e.target.value)),u=e.target.closest('.itemrow').querySelector('.iu');if(pr&&!num(u.value))u.value=num(pr.Valor)}upd()});
   $('items').addEventListener('click',e=>{if(e.target.closest('.irm')&&document.querySelectorAll('#items .itemrow').length>1){e.target.closest('.itemrow').remove();upd()}});
   $('addItem').onclick=()=>{$('items').insertAdjacentHTML('beforeend',itemRow())};
   $('cancelNew').onclick=closeModal;
   $('confirmNew').onclick=()=>{
-    const name=$('newName').value.trim();
+    const name=$('newName').value.trim(),period=$('newCycle').value;
     const items=[...document.querySelectorAll('#items .itemrow')].map(r=>({product:r.querySelector('.ip').value.trim(),qty:num(r.querySelector('.iq').value),unit:num(r.querySelector('.iu').value)})).filter(i=>i.product).map(i=>({...i,subtotal:i.qty*i.unit}));
     if(!name||!items.length||items.some(i=>i.qty<=0)){toast('Informe a pessoa e ao menos um produto com quantidade válida.');return}
-    db.Pedidos.push(...normalizeOrder({id:newId(),period:ensurePeriod(),name,date:$('newDate').value,items,total:sum(items,i=>i.subtotal),notes:$('newNotes').value,source:MANUAL}));
-    closeModal();renderAll();toast('Pedido adicionado.');
+    if(!period){toast('Escolha o ciclo do pedido.');return}
+    const base={period,name,date:$('newDate').value,items,total:sum(items,i=>i.subtotal),notes:$('newNotes').value,source:MANUAL};
+    if(editing){
+      const at=db.Pedidos.findIndex(r=>r['ID do pedido']===editId);
+      db.Pedidos=db.Pedidos.filter(r=>r['ID do pedido']!==editId);
+      db.Pedidos.splice(Math.max(at,0),0,...normalizeOrder({...base,id:editId},db.Pedidos));
+      db.Pagamentos.forEach(pg=>{if(pg['ID do pedido']===editId){pg['ID do período']=period;pg['Nome da pessoa']=name}});
+    }else db.Pedidos.push(...normalizeOrder({...base,id:newId()}));
+    const cp=periodById(period);
+    closeModal();renderAll();toast((editing?'Pedido atualizado':'Pedido adicionado')+(cp?' em: '+cycleLabel(cp)+' — '+cp.Nome:'')+'.');
   };
 }
 
 
 /* ---------- produtos ---------- */
 const fq=n=>Number(n||0).toLocaleString('pt-BR',{maximumFractionDigits:2});
-function qtyByProduct(){
+function qtyByProduct(cycleId){
   const m={};
-  orderGroups(db.Pedidos).forEach(o=>o.items.forEach(i=>{const k=slug(i.product);if(!k)return;const x=m[k]||(m[k]={name:i.product,qty:0,unit:0});x.qty+=i.qty;if(i.unit)x.unit=i.unit}));
+  orderGroups(cycleRows(cycleId||viewCycleId())).forEach(o=>o.items.forEach(i=>{const k=slug(i.product);if(!k)return;const x=m[k]||(m[k]={name:i.product,qty:0,unit:0});x.qty+=i.qty;if(i.unit)x.unit=i.unit}));
   return m;
 }
 function unregisteredProducts(){
@@ -896,7 +990,7 @@ function renderProducts(){
   const qm=qtyByProduct(),q=$('searchProducts').value.toLowerCase(),sort=$('sortProducts').value;
   const rows=db.Produtos.map(p=>({id:p['ID do produto'],name:p['Descrição']||'',price:num(p.Valor),qty:qm[slug(p['Descrição'])]?.qty||0}));
   const top=rows.slice().sort((a,b)=>b.qty-a.qty)[0];
-  $('productCards').innerHTML=[stat('Produtos cadastrados',rows.length),stat('Unidades pedidas',fq(sum(Object.values(qm),x=>x.qty)),'nos pedidos atuais'),stat('Mais pedido',top&&top.qty?esc(top.name):'—',top&&top.qty?fq(top.qty)+' unidade(s)':'')].join('');
+  $('productCards').innerHTML=[stat('Produtos cadastrados',rows.length),stat('Unidades pedidas',fq(sum(Object.values(qm),x=>x.qty)),'no ciclo selecionado'),stat('Mais pedido',top&&top.qty?esc(top.name):'—',top&&top.qty?fq(top.qty)+' unidade(s)':'')].join('');
   const un=unregisteredProducts();
   $('unregBox').innerHTML=un.length?`<div class="notice warn"><span><b>${un.length} produto(s)</b> aparecem nos pedidos, mas não estão no cadastro: ${esc(un.slice(0,4).map(x=>x.name).join(', '))}${un.length>4?'…':''}</span><button data-pimport="1" style="background:var(--panel);border:1px solid var(--line);color:var(--ink);padding:6px 11px;font-size:12px;white-space:nowrap">Cadastrar todos</button></div>`:'';
   const list=rows.filter(r=>!q||r.name.toLowerCase().includes(q));
@@ -930,8 +1024,8 @@ function importProducts(){
 
 /* ---------- desistências ---------- */
 function renderDesistencias(){
-  const all=db.Desistencias,q=$('searchDes').value.toLowerCase(),t=$('filterDesType').value;
-  $('desCount').textContent=all.length;
+  const vid=viewCycleId(),all=db.Desistencias.filter(d=>d['ID do período']===vid),q=$('searchDes').value.toLowerCase(),t=$('filterDesType').value;
+  $('desCount').textContent=db.Desistencias.filter(d=>d['ID do período']===cid(currentPeriod())).length;
   $('desCards').innerHTML=[stat('Registros',all.length),stat('Itens desistidos',fq(sum(all,d=>num(d.Quantidade)))),stat('Valor desistido',money(sum(all,d=>num(d.Subtotal))),'não entra no total dos pedidos','negative'),stat('Pessoas',new Set(all.map(d=>slug(d['Nome da pessoa']))).size)].join('');
   const list=all.filter(d=>(!q||[d['Nome da pessoa'],d.Produto].join(' ').toLowerCase().includes(q))&&(!t||d.Tipo===t)).slice().reverse();
   $('desTable').innerHTML=list.length?table(['Pessoa','Produto','Qtd.','Valor','Tipo','Detectado em','Período',''],list.map(d=>`<tr><td data-label="Pessoa"><b>${esc(d['Nome da pessoa'])}</b></td><td data-label="Produto">${esc(d.Produto)}</td><td data-label="Qtd.">${fq(num(d.Quantidade))}</td><td class="money" data-label="Valor">${money(num(d.Subtotal))}</td><td data-label="Tipo"><span class="badge ${d.Tipo==='Pedido removido'?'alerta':'parcial'}" style="margin:0">${esc(d.Tipo)}</span></td><td data-label="Detectado em">${esc(d['Detectado em'])}</td><td data-label="Período">${esc(d['Nome do período']||periodName(d['ID do período']))}</td><td data-label=""><button class="outline small" data-desdel="${esc(d['ID do registro'])}">Excluir</button></td></tr>`).join('')):'<div class="empty"><b>Nenhuma desistência registrada</b>Quando alguém tirar um item da planilha, ele aparece aqui.</div>';
@@ -940,10 +1034,11 @@ function deleteDes(id){
   db.Desistencias=db.Desistencias.filter(d=>d['ID do registro']!==id);renderAll();toast('Registro excluído.');
 }
 function clearDes(){
-  if(!db.Desistencias.length){toast('Não há registros.');return}
-  showModal('Limpar desistências',`<p>Excluir os <strong>${db.Desistencias.length}</strong> registros de desistência? Os pedidos não são afetados.</p>`,[{id:'cancelCD',label:'Cancelar'},{id:'confirmCD',label:'Excluir todos',cls:'danger'}]);
+  const vidc=viewCycleId(),nrec=db.Desistencias.filter(d=>d['ID do período']===vidc).length;
+  if(!nrec){toast('Não há registros neste ciclo.');return}
+  showModal('Limpar desistências',`<p>Excluir os <strong>${nrec}</strong> registros de desistência deste ciclo? Os pedidos não são afetados.</p>`,[{id:'cancelCD',label:'Cancelar'},{id:'confirmCD',label:'Excluir todos',cls:'danger'}]);
   $('cancelCD').onclick=closeModal;
-  $('confirmCD').onclick=()=>{db.Desistencias=[];closeModal();renderAll();toast('Registros excluídos.')};
+  $('confirmCD').onclick=()=>{db.Desistencias=db.Desistencias.filter(d=>d['ID do período']!==vidc);closeModal();renderAll();toast('Registros excluídos.')};
 }
 function orderSummary(){
   const qm=qtyByProduct(),used=new Set(),lines=[];let total=0;
@@ -991,7 +1086,7 @@ const sig=items=>items.map(i=>`${i.product}:${num(i.qty)}:${num(i.unit)}`).sort(
 /* Sincronização: um pedido da planilha = uma pessoa no período aberto (ID estável GS-período-pessoa).
    Atualiza o que mudou, preserva status de pagamento e nunca apaga nada sozinho. */
 function applySync(incoming,allowRemoval=true){
-  const p=activePeriod();if(!p)return null;
+  const p=sheetCycle();if(!p)return null;
   const pid=p['ID do período'],added=[],changed=[],alerts=[],gave=[];let dupes=0,suspicious=false;const seen=new Set();
   incoming.forEach(o=>{
     const oid='GS-'+pid+'-'+slug(o.name);seen.add(oid);
@@ -1057,7 +1152,7 @@ function renderSync(){
   let txt;
   if(syncing)txt='Sincronizando…';
   else if(syncState==='error')txt='Sem conexão com a planilha — toque para tentar';
-  else if(syncState==='noperiod')txt='Abra um período para sincronizar';
+  else if(syncState==='noperiod')txt='Inicie uma semana para sincronizar';
   else if(lastSync){txt='Atualizado '+ago(lastSync);if(settings.auto&&nextAt&&!document.hidden)txt+=` · próxima em ${Math.max(0,Math.ceil((nextAt-Date.now())/1000))}s`;else if(!settings.auto)txt+=' · automático desligado'}
   else txt='Aguardando sincronização';
   t.textContent=txt;
@@ -1066,7 +1161,7 @@ async function syncNow(manual){
   if(syncing)return;
   if(!settings.api){if(manual)toast('Informe o endereço da API em Configurações.');return}
   ensureFirstPeriod();
-  if(!activePeriod()){setSyncState('noperiod');if(manual)toast('Não há período aberto. Abra um novo período no Histórico.');return}
+  if(!sheetCycle()){setSyncState('noperiod');if(manual)toast('Não há ciclo para receber a planilha. Use “Iniciar Nova Semana”.');return}
   syncing=true;renderSync();
   try{
     const res=await fetch(settings.api+(settings.api.includes('?')?'&':'?')+'t='+Date.now(),{cache:'no-store'});
@@ -1080,6 +1175,7 @@ async function syncNow(manual){
     const first=!lastHash;lastHash=h;
     const parsed=parseMatrix(data,SRC);
     if(!parsed.length)throw new Error('Não consegui interpretar a estrutura da planilha.');
+    lastParsed=parsed;
     const r=applySync(parsed);
     renderAll();
     if(r.added.length||r.changed.length||r.gave.length){
@@ -1297,42 +1393,94 @@ function openDbFile(file){
   }catch(err){notify('Não foi possível ler o arquivo Excel: '+err.message,'error')}};
   reader.readAsArrayBuffer(file);
 }
+function snapshotCycle(p){
+  const id=cid(p),ts=nowText();
+  db.Historico=db.Historico.filter(r=>r['ID do período']!==id);
+  const copy=db.Pedidos.filter(r=>r['ID do período']===id).map(r=>({...r,'Arquivado em':ts,'Nome do período':p.Nome}));
+  db.Historico.push(...copy);p['Arquivado em']=ts;return copy.length;
+}
 function archiveFlow(){
-  const p=activePeriod();
-  if(!p){notify('Não há período aberto. Abra um novo período antes de arquivar.','error');return}
-  if(p['Arquivado em']||db.Historico.some(r=>r['ID do período']===p['ID do período'])){notify('Este período já possui registros no histórico. Novo arquivamento bloqueado para evitar duplicidade.','warn');return}
-  const g=orderGroups(db.Pedidos.filter(r=>r['ID do período']===p['ID do período']));
-  if(!g.length){notify('Não há pedidos no período atual para arquivar.','warn');return}
-  const total=sum(g,o=>o.total),paid=sum(g,o=>Math.min(o.paid,o.total));
-  pendingArchive={p,g};
-  showModal('Prévia do arquivamento',`<div class="notice warn"><span>O histórico só vale depois que você baixar o Excel atualizado. Não limpe a planilha de origem antes disso.</span></div><div class="cards" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr))">${stat('Período',esc(p.Nome))}${stat('Pedidos / pessoas',`${g.length} / ${new Set(g.map(o=>slug(o.name))).size}`)}${stat('Pago',money(paid),'','positive')}${stat('Pendente',money(total-paid),'','negative')}</div><p>Total do período: <strong>${money(total)}</strong></p>${table(['Pessoa','Total','Status'],g.slice(0,50).map(o=>`<tr><td data-label="Pessoa">${esc(o.name)}</td><td data-label="Total">${money(o.total)}</td><td data-label="Status">${badge(o.status)}</td></tr>`).join(''))}`,[{id:'cancelArchive',label:'Cancelar'},{id:'confirmArchive',label:'Confirmar e gerar Excel',cls:'primary'}]);
+  const p=viewPeriod();if(!p){notify('Não há ciclo selecionado.','error');return}
+  const rows=cycleRows(cid(p)),g=orderGroups(rows);
+  if(!g.length){notify('Não há pedidos neste ciclo para salvar no histórico.','warn');return}
+  const c=calc(rows);
+  showModal('Salvar histórico',`<div class="notice info"><span>Copia os pedidos deste ciclo para a aba Histórico e gera um Excel de backup.${p['Arquivado em']?' Já havia um histórico salvo — ele será atualizado.':''} Isto não encerra o ciclo.</span></div><div class="cards" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr))">${stat('Ciclo',esc(p.Nome))}${stat('Pedidos / pessoas',`${c.groups.length} / ${c.people}`)}${stat('Pago',money(c.paid),'','positive')}${stat('Pendente',money(c.pending),'','negative')}</div>`,[{id:'cancelArchive',label:'Cancelar'},{id:'confirmArchive',label:'Salvar e gerar Excel',cls:'primary'}]);
   $('cancelArchive').onclick=closeModal;
-  $('confirmArchive').onclick=()=>{
-    const a=pendingArchive;if(!a)return;const ts=nowText(),existing=new Set(db.Historico.map(r=>r['ID do pedido']+'|'+r.Produto));
-    const copy=db.Pedidos.filter(r=>r['ID do período']===a.p['ID do período']&&!existing.has(r['ID do pedido']+'|'+r.Produto)).map(r=>({...r,'Arquivado em':ts,'Nome do período':a.p.Nome}));
-    db.Historico.push(...copy);a.p['Arquivado em']=ts;a.p.Status='Encerrado';a.p['Data de encerramento']=a.p['Data de encerramento']||isoDate();
-    closeModal();renderAll();setSyncState('noperiod');
-    if(downloadWorkbook('Histórico preparado'))notify(`Excel gerado com ${copy.length} linha(s) arquivada(s). A sincronização fica pausada até você abrir um novo período — limpe a planilha de origem antes, para não reimportar pedidos antigos.`,'success');
+  $('confirmArchive').onclick=()=>{const n=snapshotCycle(p);closeModal();renderAll();if(downloadWorkbook('Histórico salvo'))notify(`Histórico salvo (${n} linha(s) de “${p.Nome}”) e Excel gerado.`,'success')};
+}
+// sobreposição entre a planilha do Google e os pedidos de um ciclo (sinal de que a planilha ainda não foi limpa)
+function sheetOverlap(fromP){
+  if(!fromP||!lastParsed.length)return null;
+  const old=orderGroups(cycleRows(cid(fromP)));let n=0;
+  lastParsed.forEach(o=>{const m=old.find(g=>slug(g.name)===slug(o.name));if(m&&sig(m.items.map(i=>({product:i.product,qty:i.qty,unit:i.unit})))===sig(o.items))n++});
+  return {n,total:lastParsed.length,high:n>=1&&n>=lastParsed.length*0.5};
+}
+function sheetWarn(fromP){
+  const ov=sheetOverlap(fromP);if(!ov||!ov.high)return '';
+  return `<div class="notice warn"><span><b>Atenção:</b> a planilha do Google ainda parece ter os pedidos de “${esc(fromP.Nome)}” (${ov.n} de ${ov.total} pessoas iguais). Limpe a planilha de origem antes; senão esses pedidos serão importados de novo no novo ciclo.</span></div><label class="switch"><input type="checkbox" id="ackSheet"> Já limpei (ou vou limpar) a planilha</label>`;
+}
+function startNewWeek(){
+  const cur=currentPeriod(),nxt=nextPeriod(),sc=sheetCycle(),st=p=>calc(cycleRows(cid(p)));
+  const moves=!sc||!nxt||cid(sc)!==cid(nxt);
+  const warn=moves&&cur&&sc&&cid(sc)===cid(cur)?sheetWarn(cur):'';
+  let startBox;
+  if(nxt){const s2=st(nxt);startBox=`<p><b>${esc(nxt.Nome)}</b> (Próxima Semana) vira a <b>Semana Atual</b>. ${s2.groups.length?`Já tem ${s2.groups.length} pedido(s) lançado(s), ${money(s2.total)}.`:'Ainda não tem pedidos.'}</p>`}
+  else startBox=`<p>Não há “Próxima Semana” criada — será criado um novo ciclo como Semana Atual:</p><div class="two"><div class="field"><label for="nwName">Nome *</label><input id="nwName" value="${esc(weekName(defaultNewWeek()))}"></div><div class="field"><label for="nwDate">Início</label><input id="nwDate" type="date" value="${isoDate()}"></div></div>`;
+  let endBox='';
+  if(cur){const s1=st(cur);endBox=`<p><b>${esc(cur.Nome)}</b> será <b>encerrada</b> (consolidada): ${s1.groups.length} pedido(s), vendido ${money(s1.total)}, a receber ${money(s1.pending)}. Ela continua disponível para receber pagamentos e pedidos avulsos atrasados.</p><label class="switch"><input type="checkbox" id="nwHist" checked> Salvar histórico (gerar Excel) da semana que termina</label>`}
+  const sheetBox=moves?`<p>A planilha do Google passará a alimentar a nova Semana Atual.</p>${warn}`:'<p class="muted">A planilha do Google já está alimentando esta semana.</p>';
+  showModal('Iniciar Nova Semana',startBox+'<div class="splitline"></div>'+endBox+'<div class="splitline"></div>'+sheetBox,[{id:'cancelNW',label:'Cancelar'},{id:'confirmNW',label:'Iniciar Nova Semana',cls:'primary'}]);
+  $('cancelNW').onclick=closeModal;
+  $('confirmNW').onclick=()=>{
+    if($('ackSheet')&&!$('ackSheet').checked){toast('Confirme que a planilha foi limpa.');return}
+    let np=nxt;
+    if(!np){const name=($('nwName').value||'').trim();if(!name){toast('Informe o nome da nova semana.');return}
+      np={'ID do período':newCycleId(),Nome:name,'Data de abertura':$('nwDate').value||isoDate(),'Data de encerramento':'',Status:'Atual','Arquivado em':''};db.Periodos.push(np)}
+    const hist=!!(cur&&$('nwHist')&&$('nwHist').checked);
+    if(cur){if(hist)snapshotCycle(cur);cur.Status='Encerrado';cur['Data de encerramento']=cur['Data de encerramento']||isoDate()}
+    np.Status='Atual';if(!np['Data de abertura'])np['Data de abertura']=isoDate();
+    cfgSet('sheet_cycle',cid(np));settings.viewCycle='__atual';saveSettings();lastHash='';orphans.clear();
+    closeModal();renderAll();
+    toast('Nova semana iniciada: '+np.Nome+'.');
+    if(hist)downloadWorkbook('Histórico salvo');
+    syncNow(true).then(schedule);
   };
 }
-function openNewPeriod(){
-  showModal('Abrir novo período',`<div class="field"><label>Nome do período *</label><input id="npName" placeholder="Ex.: Pedidos de novembro/2026"></div><div class="field"><label>Data de abertura</label><input id="npStart" type="date" value="${isoDate()}"></div><p class="muted">O histórico anterior é preservado. Se a planilha de origem ainda tiver os pedidos do período passado, limpe-a antes: a sincronização importa o que estiver lá.</p>`,[{id:'cancelNP',label:'Cancelar'},{id:'confirmNP',label:'Abrir período',cls:'primary'}]);
-  $('cancelNP').onclick=closeModal;
-  $('confirmNP').onclick=()=>{const name=$('npName').value.trim();if(!name){toast('Informe o nome do período.');return}if(activePeriod()){toast('Encerre o período atual antes de abrir outro.');return}
-    db.Periodos.push({'ID do período':'PER-'+Date.now().toString(36).toUpperCase(),Nome:name,'Data de abertura':$('npStart').value||isoDate(),'Data de encerramento':'',Status:'Aberto','Arquivado em':''});
-    lastHash='';orphans.clear();closeModal();renderAll();toast('Período aberto.');syncNow(true).then(schedule)};
+function createNextWeek(){
+  const ex=nextPeriod();if(ex){toast('Já existe uma Próxima Semana: '+ex.Nome);return}
+  const sc=sheetCycle();
+  showModal('Criar próxima semana',`<p>Use para registrar vendas antecipadas enquanto a Semana Atual segue em andamento. Os valores ficam separados.</p><div class="two"><div class="field"><label for="cnName">Nome *</label><input id="cnName" value="${esc(weekName(nextMondayISO()))}"></div><div class="field"><label for="cnDate">Início previsto</label><input id="cnDate" type="date" value="${nextMondayISO()}"></div></div><label class="switch"><input type="checkbox" id="cnSheet"> A planilha do Google passa a alimentar esta semana</label><p class="muted">Marque só depois de limpar a planilha de origem — senão os pedidos da semana atual seriam copiados para a próxima.</p><div id="cnWarn"></div>`,[{id:'cancelCN',label:'Cancelar'},{id:'confirmCN',label:'Criar próxima semana',cls:'primary'}]);
+  $('cnSheet').onchange=()=>{$('cnWarn').innerHTML=$('cnSheet').checked&&sc?sheetWarn(sc):''};
+  $('cancelCN').onclick=closeModal;
+  $('confirmCN').onclick=()=>{
+    const name=$('cnName').value.trim();if(!name){toast('Informe o nome.');return}
+    if($('cnSheet').checked&&$('ackSheet')&&!$('ackSheet').checked){toast('Confirme que a planilha foi limpa.');return}
+    const np={'ID do período':newCycleId(),Nome:name,'Data de abertura':$('cnDate').value||nextMondayISO(),'Data de encerramento':'',Status:'Próxima','Arquivado em':''};
+    db.Periodos.push(np);
+    const feed=$('cnSheet').checked;
+    if(feed){cfgSet('sheet_cycle',cid(np));lastHash='';orphans.clear()}
+    closeModal();renderAll();toast('Próxima semana criada.');
+    if(feed)syncNow(true).then(schedule);
+  };
 }
-function closePeriod(){
-  const p=activePeriod();if(!p){toast('Não há período aberto.');return}
-  showModal('Encerrar período atual',`<p>Encerrar <strong>${esc(p.Nome)}</strong>?</p><p class="muted">Encerrar não arquiva nem apaga pedidos, mas pausa a sincronização. Para preservar o histórico, use “Salvar histórico”.</p>`,[{id:'cancelCloseP',label:'Cancelar'},{id:'confirmCloseP',label:'Encerrar período',cls:'danger'}]);
-  $('cancelCloseP').onclick=closeModal;
-  $('confirmCloseP').onclick=()=>{p.Status='Encerrado';p['Data de encerramento']=isoDate();closeModal();renderAll();setSyncState('noperiod');toast('Período encerrado.')};
+function editCycle(id){
+  const p=periodById(id);if(!p)return;
+  showModal('Editar ciclo',`<div class="field"><label for="ecName">Nome *</label><input id="ecName" value="${esc(p.Nome)}"></div><div class="two"><div class="field"><label for="ecStart">Abertura</label><input id="ecStart" type="date" value="${esc(dateVal(p['Data de abertura']))}"></div><div class="field"><label for="ecEnd">Encerramento</label><input id="ecEnd" type="date" value="${esc(dateVal(p['Data de encerramento']))}"></div></div><p class="muted">Situação: ${esc(cycleLabel(p))}. A situação muda por “Iniciar Nova Semana”.</p>`,[{id:'cancelEC',label:'Cancelar'},{id:'confirmEC',label:'Salvar',cls:'primary'}]);
+  $('cancelEC').onclick=closeModal;
+  $('confirmEC').onclick=()=>{const n=$('ecName').value.trim();if(!n){toast('Informe o nome.');return}p.Nome=n;p['Data de abertura']=$('ecStart').value||p['Data de abertura'];p['Data de encerramento']=$('ecEnd').value;closeModal();renderAll();toast('Ciclo atualizado.')};
 }
-function savePeriodSettings(){
-  let p=activePeriod()||db.Periodos[db.Periodos.length-1];
-  if(!p){db.Periodos.push({'ID do período':'PER-'+Date.now().toString(36).toUpperCase(),Nome:$('periodName').value||'Período '+fmtDate(isoDate()),'Data de abertura':$('periodStart').value||isoDate(),'Data de encerramento':$('periodEnd').value,Status:$('periodState').value,'Arquivado em':''})}
-  else{p.Nome=$('periodName').value||p.Nome;p['Data de abertura']=$('periodStart').value||p['Data de abertura'];p['Data de encerramento']=$('periodEnd').value;p.Status=$('periodState').value}
-  renderAll();toast('Período atualizado.');
+function setSheetCycle(id){
+  const p=periodById(id),from=sheetCycle();if(!p)return;
+  showModal('Planilha do Google → ciclo',`<p>A planilha do Google passará a alimentar: <b>${esc(cycleLabel(p))} — ${esc(p.Nome)}</b>.</p><p class="muted">Os pedidos que já estão em outros ciclos não são alterados.</p>${from&&cid(from)!==id?sheetWarn(from):''}`,[{id:'cancelSC',label:'Cancelar'},{id:'confirmSC',label:'Confirmar',cls:'primary'}]);
+  $('cancelSC').onclick=closeModal;
+  $('confirmSC').onclick=()=>{if($('ackSheet')&&!$('ackSheet').checked){toast('Confirme que a planilha foi limpa.');return}cfgSet('sheet_cycle',id);lastHash='';orphans.clear();closeModal();renderAll();toast('Planilha agora alimenta: '+p.Nome+'.');syncNow(true).then(schedule)};
+}
+function deleteCycle(id){
+  const p=periodById(id);if(!p)return;
+  if(cycleRows(id).length){toast('Este ciclo tem pedidos e não pode ser excluído.');return}
+  showModal('Excluir ciclo',`<p>Excluir o ciclo <b>${esc(p.Nome)}</b>? Ele não tem pedidos.</p>`,[{id:'cancelDC',label:'Cancelar'},{id:'confirmDC',label:'Excluir',cls:'danger'}]);
+  $('cancelDC').onclick=closeModal;
+  $('confirmDC').onclick=()=>{db.Periodos=db.Periodos.filter(x=>cid(x)!==id);if(cfgGet('sheet_cycle')===id)cfgSet('sheet_cycle','');if(settings.viewCycle===id){settings.viewCycle='__atual';saveSettings()}closeModal();renderAll();toast('Ciclo excluído.')};
 }
 function exportCsv(){
   const rows=[['Pessoa','Pedidos','Total','Pago','Pendente'],...peopleSummary(reportRows()).map(x=>[x.name,x.count,x.total.toFixed(2),x.paid.toFixed(2),x.open.toFixed(2)])];
@@ -1364,9 +1512,8 @@ $('importSourceInput').onchange=e=>{
 };
 $('saveSyncBtn').onclick=()=>{settings.auto=$('autoSync').checked;settings.interval=Number($('syncInterval').value)||30;settings.sound=$('soundOn').checked;settings.api=$('apiUrl').value.trim();saveSettings();lastHash='';syncNow(true).then(schedule)};
 $('autoSync').onchange=()=>{settings.auto=$('autoSync').checked;saveSettings();schedule()};
-['searchOrders','filterPeriod','sortOrders'].forEach(i=>$(i).addEventListener('input',()=>{shownOrders=60;renderOrders()}));
+['searchOrders','sortOrders'].forEach(i=>$(i).addEventListener('input',()=>{shownOrders=60;renderOrders()}));
 ['searchPayments','filterPayment'].forEach(i=>$(i).addEventListener('input',renderPayments));
-$('reportPeriod').addEventListener('input',renderReports);
 
 $('remoteChip').onclick=()=>{if(R.conflict)showConflict();else rrun(()=>pullRemote(true)).catch(()=>{})};
 $('connectDbBtn').onclick=async()=>{
@@ -1392,17 +1539,18 @@ $('newProductBtn').onclick=()=>editProduct();
 $('orderSummaryBtn').onclick=openOrderSummary;
 ['searchDes','filterDesType'].forEach(i=>$(i).addEventListener('input',renderDesistencias));
 $('clearDesBtn').onclick=clearDes;
-$('newOrderBtn').onclick=newOrder;$('archiveBtn').onclick=archiveFlow;$('newPeriodBtn').onclick=openNewPeriod;$('closePeriodBtn').onclick=closePeriod;$('savePeriodSettings').onclick=savePeriodSettings;$('exportReportBtn').onclick=exportCsv;
+$('newOrderBtn').onclick=()=>newOrder();$('archiveBtn').onclick=archiveFlow;$('newWeekBtn').onclick=startNewWeek;$('newWeekBtn2').onclick=startNewWeek;$('nextWeekBtn').onclick=createNextWeek;
+$('cycleSelect').addEventListener('change',()=>{const v=$('cycleSelect').value;settings.viewCycle=v===cid(currentPeriod())?'__atual':v;saveSettings();shownOrders=60;renderAll()});$('exportReportBtn').onclick=exportCsv;
 $('modalClose').onclick=closeModal;$('modalBack').addEventListener('click',e=>{if(e.target===$('modalBack'))closeModal()});
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape')closeModal();
   if(e.key==='/'&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){e.preventDefault();go('pedidos');$('searchOrders').focus()}
 });
 document.addEventListener('click',e=>{
-  const t=e.target.closest('[data-view],[data-pay],[data-del],[data-extrato],[data-cobrar],[data-quitar],[data-chip],[data-more],[data-pedit],[data-pdel],[data-pimport],[data-desdel],[data-receber],[data-delpay],[data-copypix],[data-gomore]');if(!t)return;
+  const t=e.target.closest('[data-view],[data-pay],[data-del],[data-extrato],[data-cobrar],[data-quitar],[data-chip],[data-more],[data-pedit],[data-pdel],[data-pimport],[data-desdel],[data-receber],[data-delpay],[data-copypix],[data-gomore],[data-cyedit],[data-cysheet],[data-cydel]');if(!t)return;
   const d=t.dataset;
   if(d.view)openDetails(d.view);else if(d.pay)payOrder(d.pay);else if(d.del)deleteOrder(d.del);
-  else if(d.extrato)extrato(d.extrato);else if(d.cobrar)cobrar(d.cobrar);else if(d.receber)receberPessoa(d.receber);else if(d.delpay)delPayment(d.delpay);
+  else if(d.extrato)extrato(d.extrato);else if(d.cobrar)cobrar(d.cobrar,d.cy);else if(d.receber)receberPessoa(d.receber,d.cy);else if(d.cyedit)editCycle(d.cyedit);else if(d.cysheet)setSheetCycle(d.cysheet);else if(d.cydel)deleteCycle(d.cydel);else if(d.delpay)delPayment(d.delpay);
   else if(d.gomore){closeModal();go(d.gomore)}
   else if(d.copypix){const c=pixCfg();copyText(d.copypix==='key'?c.key:pixPayload(0)).then(ok=>toast(ok?'Copiado.':'Não foi possível copiar.'))}
   else if(d.chip!==undefined&&t.classList.contains('chip')){statusFilter=d.chip;shownOrders=60;renderOrders()}
