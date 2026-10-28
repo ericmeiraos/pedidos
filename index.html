@@ -266,12 +266,25 @@ details summary{cursor:pointer;color:var(--muted);font-size:12px;margin:2px 0 10
 .grid2f{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
 .bar{height:10px;border-radius:10px;background:var(--amber-bar);overflow:hidden}.bar>div{height:100%;background:var(--blue)}
 .cyhead{margin:18px 0 6px;font-size:14px}
+.notice{flex-wrap:wrap}.notice .noticebtns{display:flex;gap:6px;flex-wrap:wrap}.notice .noticebtns button{background:var(--panel);color:var(--ink);border:1px solid var(--line);padding:6px 11px;font-size:12px;line-height:1.2;white-space:normal;min-height:34px}
 @media(max-width:1100px){.grid2f{grid-template-columns:1fr}}
 @media(max-width:900px){.cyclesel{flex:1 1 100%}.cyclesel select{flex:1;max-width:none}.dashhead .primary{width:100%}}
+.payapp{display:none}
+body.payview{background:linear-gradient(160deg,#15213a,#2a4fb8);min-height:100vh}
+body.payview .app,body.payview .bottomnav,body.payview .login,body.payview .modalback,body.payview .toast{display:none!important}
+body.payview .payapp{display:flex;min-height:100vh;padding:18px;overflow:auto}
+.paycard{--panel:#fff;--ink:#17213a;--muted:#667085;--line:#e4e8f0;--hover:#f8faff;--blue:#3a69f0;--gray-soft:#edf0f4;color-scheme:light;color:var(--ink);width:min(420px,100%);margin:auto;background:#fff;border-radius:20px;padding:24px 20px;text-align:center;box-shadow:0 20px 70px #0006}
+.paycard h1{font-size:22px;margin:0 0 6px;letter-spacing:-.4px}
+.paybtn{display:block;width:100%;margin:10px 0 0;min-height:54px;font-size:16px}
+.paykey{font-family:ui-monospace,Menlo,Consolas,monospace;word-break:break-all;background:#f3f5f9;border-radius:10px;padding:10px;font-size:13px;margin:8px 0 14px;user-select:all}
+.paydl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;text-align:left;font-size:13px;margin:16px 0 8px}
+.paydl dt{color:var(--muted)}.paydl dd{margin:0;font-weight:600}
+.paysteps{text-align:left;font-size:12.5px;color:var(--muted);margin:10px 0 0;padding-left:18px}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body class="locked">
+<div class="payapp" id="payApp"></div>
 <div class="login" id="loginScreen">
   <form class="logincard hidden" id="loginForm" autocomplete="on">
     <div class="loginlogo">▦</div>
@@ -315,11 +328,13 @@ details summary{cursor:pointer;color:var(--muted);font-size:12px;margin:2px 0 10
       <button class="syncchip hidden" id="remoteChip" data-state="idle" title="Banco de dados online (planilha)"><span class="sdot"></span><span id="remoteText">Banco: conectando…</span></button>
     </div>
   </header>
+  <div id="driftBanner" class="notice warn hidden"><span id="driftText"></span><span class="noticebtns"><button id="driftNew">Iniciar Nova Semana</button><button id="driftApply">Aplicar mesmo assim</button></span></div>
   <div id="globalNotice" class="notice info hidden"><span id="noticeText"></span><button id="noticeClose" aria-label="Fechar aviso">×</button></div>
 
   <section class="section active" id="page-dashboard">
     <div class="dashhead"><div id="dashHead"></div><button class="primary" id="newWeekBtn">▶ Iniciar Nova Semana</button></div>
     <div class="cards" id="dashboardCards"></div>
+    <div class="panel hidden" id="pendPanel" style="margin-bottom:16px"></div>
     <div class="grid2">
       <div class="panel"><div class="panelhead"><h2>Recebimentos</h2></div><div class="panelbody"><div class="donutwrap" id="donutBox"></div></div></div>
       <div class="panel"><div class="panelhead"><h2>Maiores pedidos por pessoa</h2><span class="tagline">Top 6</span></div><div class="panelbody" id="peopleChart"></div></div>
@@ -341,6 +356,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:12px;margin:2px 0 10
   </section>
 
   <section class="section" id="page-cobrar">
+    <div id="bannerCob"></div>
     <div class="panel" style="margin-bottom:16px"><div id="pixCard"></div></div>
     <div class="cards" id="cobrarCards"></div>
     <div class="panel">
@@ -353,6 +369,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:12px;margin:2px 0 10
   </section>
 
   <section class="section" id="page-pagamentos">
+    <div id="bannerPay"></div>
     <div class="cards" id="paymentCards"></div>
     <div class="panel">
       <div class="toolbar">
@@ -378,6 +395,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:12px;margin:2px 0 10
         <input id="searchProducts" class="search" placeholder="Pesquisar produto…">
         <select id="sortProducts"><option value="qty">Mais pedidos</option><option value="name">Nome A–Z</option><option value="price">Maior valor</option></select>
         <button class="outline" id="orderSummaryBtn">Copiar pedido</button>
+        <button class="outline" id="notArrivedBtn">Produto que não veio…</button>
         <button class="primary" id="newProductBtn">＋ Novo produto</button>
       </div>
       <div id="productsTable"></div>
@@ -390,7 +408,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:12px;margin:2px 0 10
     <div class="panel">
       <div class="toolbar">
         <input id="searchDes" class="search" placeholder="Pesquisar pessoa ou produto…">
-        <select id="filterDesType"><option value="">Todos os tipos</option><option>Pedido removido</option><option>Item removido</option><option>Quantidade reduzida</option></select>
+        <select id="filterDesType"><option value="">Todos os tipos</option><option>Pedido removido</option><option>Pedido excluído</option><option>Item removido</option><option>Quantidade reduzida</option><option>Produto não veio</option></select>
         <button class="outline" id="clearDesBtn">Limpar todos</button>
       </div>
       <div id="desTable"></div>
@@ -425,8 +443,9 @@ details summary{cursor:pointer;color:var(--muted);font-size:12px;margin:2px 0 10
       <div class="settingblock">
         <div class="two"><div class="field"><label for="pixKey">Chave Pix</label><input id="pixKey" autocomplete="off"></div><div class="field"><label for="pixName">Nome que aparece ao pagar</label><input id="pixName" maxlength="25"></div></div>
         <div class="two"><div class="field"><label for="pixBank">Banco</label><input id="pixBank"></div><div class="field"><label for="pixCity">Cidade (até 15 letras)</label><input id="pixCity" maxlength="15"></div></div>
+        <div class="field"><label for="pixPublic">Endereço onde o sistema está publicado (para o link de pagamento)</label><input id="pixPublic" inputmode="url" placeholder="https://seu-site.com/index.html" autocomplete="off"></div>
         <div class="actions"><button class="primary" id="savePixBtn">Salvar dados do Pix</button></div>
-        <p class="footnote">Estes dados são gravados no banco e valem para todos os aparelhos.</p>
+        <p class="footnote">Estes dados são gravados no banco e valem para todos os aparelhos. O link de pagamento abre uma página só com os botões “Copiar chave” e “Copiar Pix copia e cola”, sem pedir login. Para funcionar para outras pessoas, o sistema precisa estar publicado num endereço https; deixe vazio se você abre o arquivo direto no aparelho (nesse caso a chave vai em mensagem separada).</p>
       </div>
     </div>
     <div class="panel" style="margin-bottom:16px"><div class="panelhead"><h2>Atualização automática</h2><span class="tagline">Google Sheets → sistema</span></div>
@@ -472,7 +491,7 @@ const SHEET_URL='https://docs.google.com/spreadsheets/d/1n_WrcbLUwZnfsK7g6fO0wWd
 // Opcional: cole aqui o link do banco para todos os aparelhos já abrirem conectados.
 const DEFAULT_DB_API='';
 const DEFAULT_DB_TOKEN='';
-const SRC='Google Sheets (API)', MANUAL='Cadastro manual';
+const SRC='Google Sheets (API)', MANUAL='Cadastro manual', EDITED='Planilha (editado)';
 const LS_DB='fp_db_v2', LS_SET='fp_settings_v2';
 const DB_HEADERS={
   Pedidos:['ID do pedido','ID do período','Nome da pessoa','Data do pedido','Produto','Quantidade','Valor unitário','Subtotal','Valor total do pedido','Status do pagamento','Data do pagamento','Observações','Origem'],
@@ -495,7 +514,7 @@ const authStore={
 let auth=authStore.get(), started=false;
 const PIX_DEFAULT={key:'a6709214-04e1-46ee-979a-ba63b52d52bb',name:'ERIC MEIRA OLIVEIRA SILVA',bank:'CLOUDWALK IP LTDA',city:'MANOEL VITORINO'};
 let statusFilter='', shownOrders=60;
-let lastParsed=[];
+let lastParsed=[],sheetEmpty=false,driftOk='',driftHash='';
 let syncing=false, syncState='idle', lastSync=null, lastHash='', fails=0, timer=null, nextAt=0, unseen=0;
 const fresh=new Set(), orphans=new Set();
 const baseTitle=document.title;
@@ -631,7 +650,7 @@ function table(heads,rows,cls=''){return `<div class="tablewrap"><table class="s
 function orderRow(o,actions){
   const isNew=fresh.has(o.id), manual=o.source===MANUAL, part=o.paid>0.004&&o.status!=='Pago';
   return `<tr class="${isNew?'fresh':''}">
-  <td data-label="Pessoa"><span class="person" data-extrato="${esc(o.name)}">${esc(o.name)}</span>${isNew?'<span class="badge novo">NOVO</span>':''}${orphans.has(o.id)?'<span class="badge alerta" title="Pedido já pago que não aparece mais na planilha — confira">fora da planilha</span>':''}<span class="subline">${esc(o.id||'')}</span></td>
+  <td data-label="Pessoa"><span class="person" data-extrato="${esc(o.name)}">${esc(o.name)}</span>${isNew?'<span class="badge novo">NOVO</span>':''}${orphans.has(o.id)?'<span class="badge alerta" title="Pedido já pago que não aparece mais na planilha — confira">fora da planilha</span>':''}${o.source===EDITED?'<span class="badge cy-end" title="Editado manualmente — a planilha não atualiza mais este pedido">editado</span>':''}<span class="subline">${esc(o.id||'')}</span></td>
   <td data-label="Data">${fmtDate(o.date)}</td>
   <td class="prod" data-label="Produtos" title="${esc(o.items.map(i=>`${i.product} × ${i.qty}`).join(', '))}">${esc(o.items.map(i=>`${i.product} × ${i.qty}`).join(', '))}</td>
   <td class="money" data-label="Total">${money(o.total)}</td>
@@ -726,7 +745,7 @@ function renderCobrar(){
 function renderHistory(){
   const vid=viewCycleId(),g=orderGroups(db.Historico.filter(r=>r['ID do período']===vid));
   $('historyCount').textContent=`${g.length} pedido(s) arquivado(s)`;
-  ordersTable(g.sort((a,b)=>b.date.localeCompare(a.date)),'historyTable',false,80);
+  ordersTable(g.sort((a,b)=>b.date.localeCompare(a.date)),'historyTable',true,80);
   const sc=sheetCycle();
   $('sheetInfo').firstElementChild.innerHTML=sc?`A planilha do Google está alimentando: <b>${esc(cycleLabel(sc))} — ${esc(sc.Nome)}</b>. Pedidos novos dela entram só nesse ciclo.`:'A planilha do Google não está ligada a nenhum ciclo. Use “Iniciar Nova Semana”.';
   $('periodList').innerHTML=db.Periodos.length?periodSorted().map(p=>{
@@ -740,6 +759,20 @@ function forecastHtml(title,p,empty){
   const x=cycleStats(p);
   return `<div class="panel"><div class="panelhead"><h2>${title}</h2><span class="tagline">${esc(p.Nome)}</span></div><div class="panelbody"><div class="cards" style="margin:0 0 14px">${stat('Total vendido',money(x.total),`${x.n} pedido(s) • ${x.people} pessoa(s)`)}${stat('Já recebido',money(x.paid),`${x.pct}% do vendido`,'positive')}${stat('A receber',money(x.pending),'previsão de entrada',x.pending>0.004?'negative':'')}</div><div class="bar" role="img" aria-label="${x.pct}% recebido"><div style="width:${x.pct}%"></div></div></div></div>`;
 }
+function pendingCycles(){return db.Periodos.filter(p=>p.Status==='Encerrado').map(cycleStats).filter(x=>x.pending>0.004).sort((a,b)=>String(b.p['Data de abertura']).localeCompare(String(a.p['Data de abertura'])))}
+function renderPendencias(){
+  const list=pendingCycles(),el=$('pendPanel');el.classList.toggle('hidden',!list.length);if(!list.length)return;
+  const owes=x=>peopleSummary(cycleRows(cid(x.p))).filter(y=>y.open>0.004).length;
+  el.innerHTML=`<div class="panelhead"><h2>Pagamentos pendentes de semanas anteriores</h2><span class="tagline">continuam sendo controlados aqui</span></div><div class="panelbody"><div class="periodcards">${list.map(x=>`<div class="periodcard"><div class="statusline"><h3>${esc(x.p.Nome)}</h3>${cycleBadge(x.p)}</div><p><b>${owes(x)}</b> pessoa(s) ainda devem</p><p>A receber <b class="negative">${money(x.pending)}</b> • já recebido <b class="positive">${money(x.paid)}</b></p><div class="rowbuttons"><button class="primary small" data-cyfocus="${esc(cid(x.p))}" data-cypage="pagamentos">Registrar pagamentos</button><button class="outline small" data-cyfocus="${esc(cid(x.p))}" data-cypage="cobrar">Cobrar</button></div></div>`).join('')}</div></div>`;
+}
+function cycleBannerHtml(page){
+  const vp=viewPeriod(),cur=currentPeriod();
+  if(vp&&cur&&cid(vp)!==cid(cur))return `<div class="notice info"><span>Você está vendo <b>${esc(cycleLabel(vp))} — ${esc(vp.Nome)}</b>. Pagamentos registrados aqui atualizam o Financeiro dessa semana e não mexem na Semana Atual.</span><span class="noticebtns"><button data-cyfocus="__atual" data-cypage="${page}">Voltar para a Semana Atual</button></span></div>`;
+  const pend=pendingCycles();
+  if(!pend.length)return '';
+  return `<div class="notice warn"><span>Semanas anteriores com valores a receber: ${pend.map(x=>`<b>${esc(x.p.Nome)}</b> ${money(x.pending)}`).join(' • ')}</span><span class="noticebtns">${pend.slice(0,2).map(x=>`<button data-cyfocus="${esc(cid(x.p))}" data-cypage="${page}">Ver ${esc(x.p.Nome)}</button>`).join('')}</span></div>`;
+}
+function renderCycleBanners(){$('bannerPay').innerHTML=cycleBannerHtml('pagamentos');$('bannerCob').innerHTML=cycleBannerHtml('cobrar')}
 function renderFinance(){
   const ended=db.Periodos.filter(p=>p.Status==='Encerrado').map(cycleStats);
   const h={n:sum(ended,x=>x.n),total:sum(ended,x=>x.total),paid:sum(ended,x=>x.paid),pending:sum(ended,x=>x.pending)};
@@ -771,7 +804,7 @@ function setDbStatus(){
   $('periodPill').textContent=p?'● Semana Atual: '+p.Nome:'● Sem Semana Atual';
   const np=$('nextPill');np.classList.toggle('hidden',!n);if(n)np.textContent='Próxima: '+n.Nome;
 }
-function renderAll(){normalizePeriods();migrateLegacyPayments();syncStatusColumns();renderCycleSelect();renderDashboard();renderOrders();renderPayments();renderCobrar();renderFinance();renderProducts();renderDesistencias();renderHistory();renderReports();setDbStatus();persist()}
+function renderAll(){normalizePeriods();migrateLegacyPayments();syncStatusColumns();renderCycleSelect();renderDashboard();renderPendencias();renderCycleBanners();renderOrders();renderPayments();renderCobrar();renderFinance();renderProducts();renderDesistencias();renderHistory();renderReports();setDbStatus();persist()}
 const LABELS={dashboard:['Dashboard','Somente a Semana Atual.'],pedidos:['Pedidos','Pedidos do ciclo selecionado, atualizados automaticamente.'],cobrar:['Cobrar','Quanto cada pessoa deve no ciclo selecionado e a chave Pix.'],pagamentos:['Pagamentos','Receba valores totais ou parciais e veja a forma de pagamento.'],financeiro:['Financeiro','Faturamento histórico e previsão de caixa por ciclo.'],historico:['Ciclos e histórico','Inicie novas semanas, veja cada ciclo e salve o histórico.'],produtos:['Produtos','Cadastro de produtos e total pedido de cada um no ciclo.'],desistencias:['Desistências','Itens e pedidos que saíram da planilha neste ciclo.'],relatorios:['Relatórios','Indicadores por pessoa no ciclo selecionado.'],config:['Configurações','Atualização automática, banco, Pix e Excel.']};
 function go(page){currentPage=page;document.querySelectorAll('.nav button,.bottomnav button[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===page));document.querySelectorAll('.section').forEach(s=>s.classList.toggle('active',s.id==='page-'+page));$('pageTitle').textContent=LABELS[page][0];$('pageSub').textContent=LABELS[page][1];{const mb=$('moreBtn');if(mb)mb.classList.toggle('active',!['dashboard','pedidos','cobrar','pagamentos'].includes(page))}if(page==='config')fillPixFields();$('cycleWrap').classList.toggle('hidden',!CYCLE_PAGES.includes(page));window.scrollTo(0,0)}
 
@@ -794,8 +827,9 @@ function openDetails(orderId){
   const o=orderGroups(allRows()).find(x=>x.id===orderId);if(!o)return;
   const cur=db.Pedidos.some(r=>r['ID do pedido']===orderId);
   const pays=o.payments.length?table(['Data','Forma','Valor','Por',''],o.payments.map(p=>`<tr><td data-label="Data">${fmtDate(p.Data)}</td><td data-label="Forma">${esc(p.Forma||'—')}</td><td class="money" data-label="Valor">${money(num(p.Valor))}</td><td data-label="Por">${esc(p['Registrado por']||'—')}</td><td data-label=""><button class="danger small" data-delpay="${esc(p['ID do pagamento'])}">Estornar</button></td></tr>`).join('')):'<p class="muted">Nenhum pagamento registrado.</p>';
-  showModal('Detalhes do pedido',`<div class="two"><div><span class="muted">Pessoa</span><h3 style="margin:2px 0 10px">${esc(o.name)}</h3></div><div><span class="muted">Status</span><p style="margin:4px 0">${badge(o.status)}</p></div><div><span class="muted">Data do pedido</span><p style="margin:2px 0">${fmtDate(o.date)}</p></div><div><span class="muted">Pago / saldo</span><p style="margin:2px 0"><b class="positive">${money(Math.min(o.paid,o.total))}</b> / <b class="${o.balance>0.004?'negative':''}">${money(o.balance)}</b></p></div></div><div class="splitline"></div>${table(['Produto','Qtd.','Unitário','Subtotal'],o.items.map(i=>`<tr><td data-label="Produto">${esc(i.product)}</td><td data-label="Qtd.">${i.qty}</td><td data-label="Unitário">${money(i.unit)}</td><td data-label="Subtotal">${money(i.subtotal)}</td></tr>`).join(''))}<p class="money" style="text-align:right;margin-top:16px">Total: ${money(o.total)}</p><div class="splitline"></div><h3 style="margin:0 0 8px;font-size:14px">Pagamentos</h3>${pays}<p class="muted">ID: ${esc(o.id)} • Ciclo: ${esc(periodName(o.period))} • Origem: ${esc(o.source||'—')}</p>${o.source===MANUAL?'':'<p class="muted">Pedido vindo da planilha: o ciclo é definido pela planilha (veja Ciclos e histórico).</p>'}${o.notes?`<p>Observações: ${esc(o.notes)}</p>`:''}`,[{id:'detailClose',label:'Fechar'}].concat(cur&&o.source===MANUAL?[{id:'detailEdit',label:'Editar pedido'}]:[]).concat(cur&&o.balance>0.004?[{id:'detailPay',label:'Receber pagamento',cls:'primary'}]:[]));
-  $('detailClose').onclick=closeModal;if($('detailPay'))$('detailPay').onclick=()=>payOrder(orderId);if($('detailEdit'))$('detailEdit').onclick=()=>newOrder(orderId);
+  showModal('Detalhes do pedido',`<div class="two"><div><span class="muted">Pessoa</span><h3 style="margin:2px 0 10px">${esc(o.name)}</h3></div><div><span class="muted">Status</span><p style="margin:4px 0">${badge(o.status)}</p></div><div><span class="muted">Data do pedido</span><p style="margin:2px 0">${fmtDate(o.date)}</p></div><div><span class="muted">Pago / saldo</span><p style="margin:2px 0"><b class="positive">${money(Math.min(o.paid,o.total))}</b> / <b class="${o.balance>0.004?'negative':''}">${money(o.balance)}</b>${o.paid>o.total+0.004?` <span class="badge alerta" title="Valor pago acima do total do pedido">pago a mais ${money(o.paid-o.total)}</span>`:''}</p></div></div><div class="splitline"></div>${table(['Produto','Qtd.','Unitário','Subtotal'],o.items.map(i=>`<tr><td data-label="Produto">${esc(i.product)}</td><td data-label="Qtd.">${i.qty}</td><td data-label="Unitário">${money(i.unit)}</td><td data-label="Subtotal">${money(i.subtotal)}</td></tr>`).join(''))}<p class="money" style="text-align:right;margin-top:16px">Total: ${money(o.total)}</p><div class="splitline"></div><h3 style="margin:0 0 8px;font-size:14px">Pagamentos</h3>${pays}<p class="muted">ID: ${esc(o.id)} • Ciclo: ${esc(periodName(o.period))} • Origem: ${esc(o.source||'—')}</p>${o.source===MANUAL?'':o.source===EDITED?'<p class="muted">Pedido da planilha <b>editado manualmente</b>: a planilha não o atualiza mais. <button class="outline small" id="detailFollow" style="margin-left:6px">Voltar a seguir a planilha</button></p>':'<p class="muted">Pedido vindo da planilha. Se você editar, ele passa a ser “editado manualmente” e a planilha deixa de atualizá-lo.</p>'}${o.notes?`<p>Observações: ${esc(o.notes)}</p>`:''}`,[{id:'detailClose',label:'Fechar'},{id:'detailEdit',label:'Editar pedido'},{id:'detailDel',label:'Excluir pedido',cls:'danger'}].concat(o.balance>0.004?[{id:'detailPay',label:'Receber pagamento',cls:'primary'}]:[]));
+  $('detailClose').onclick=closeModal;if($('detailPay'))$('detailPay').onclick=()=>payOrder(orderId);$('detailEdit').onclick=()=>newOrder(orderId);$('detailDel').onclick=()=>deleteOrder(orderId);
+  if($('detailFollow'))$('detailFollow').onclick=()=>{[db.Pedidos,db.Historico].forEach(a=>a.forEach(r=>{if(r['ID do pedido']===orderId&&r.Origem===EDITED)r.Origem=SRC}));lastHash='';renderAll();toast('O pedido volta a seguir a planilha na próxima atualização.');openDetails(orderId)};
 }
 function payOrder(orderId){const o=orderGroups(allRows()).find(x=>x.id===orderId);if(!o||o.balance<=0.004){toast('Este pedido já está quitado.');return}openPay([o],'Receber pagamento',o.name)}
 function receberPessoa(name,cycleId){const po=personOpen(name,cycleId);if(!po.orders.length){toast(name+' não tem valor em aberto neste ciclo.');return}openPay(po.orders,'Receber de '+name,name)}
@@ -826,24 +860,83 @@ function delPayment(id){
   $('cancelDelPay').onclick=closeModal;
   $('confirmDelPay').onclick=()=>{db.Pagamentos=db.Pagamentos.filter(x=>x['ID do pagamento']!==id);renderAll();toast('Pagamento estornado.');openDetails(p['ID do pedido'])};
 }
+/* ---------- editar / excluir pedidos (qualquer ciclo) ---------- */
+function logDesist(o,item,tipo,qty){
+  const q=qty==null?item.qty:qty;if(!(q>0.0001))return;
+  const per=periodById(o.period);
+  db.Desistencias.push({'ID do registro':'DES-'+Date.now().toString(36).toUpperCase()+Math.random().toString(36).slice(2,6).toUpperCase(),'ID do pedido':o.id,'ID do período':o.period,'Nome da pessoa':o.name,'Data do pedido':dateVal(o.date)||isoDate(),Produto:item.product,Quantidade:q,'Valor unitário':item.unit,Subtotal:q*item.unit,Tipo:tipo,'Detectado em':nowText(),'Nome do período':per?per.Nome:''});
+}
+// grava as linhas do pedido na aba Pedidos e também no Histórico (cópia arquivada), para não "ressuscitar" itens removidos
+function writeOrderRows(id,newRows){
+  const inP=db.Pedidos.some(r=>r['ID do pedido']===id),inH=db.Historico.some(r=>r['ID do pedido']===id);
+  if(inP){const at=db.Pedidos.findIndex(r=>r['ID do pedido']===id);db.Pedidos=db.Pedidos.filter(r=>r['ID do pedido']!==id);db.Pedidos.splice(Math.max(at,0),0,...newRows)}
+  if(inH){
+    const meta=db.Historico.find(r=>r['ID do pedido']===id),at=db.Historico.findIndex(r=>r['ID do pedido']===id);
+    db.Historico=db.Historico.filter(r=>r['ID do pedido']!==id);
+    db.Historico.splice(Math.max(at,0),0,...newRows.map(r=>({...r,'Arquivado em':meta['Arquivado em']||'','Nome do período':(periodById(r['ID do período'])||{}).Nome||meta['Nome do período']||''})));
+  }
+  if(!inP&&!inH)db.Pedidos.push(...newRows);
+}
+function removeOrderEverywhere(id){db.Pedidos=db.Pedidos.filter(r=>r['ID do pedido']!==id);db.Historico=db.Historico.filter(r=>r['ID do pedido']!==id);db.Pagamentos=db.Pagamentos.filter(p=>p['ID do pedido']!==id)}
+const editedSource=o=>o.source===SRC?EDITED:o.source;
+// pedido da planilha que foi apagado: evita que a próxima atualização o traga de volta
+function ignoreSheetEntryOf(o){
+  if(!(o.source===SRC||o.source===EDITED)||o.period!==cid(sheetCycle()))return;
+  const e=lastParsed.find(x=>slug(x.name)===slug(o.name));if(!e)return;
+  const keys=staleSet();keys.add(staleKey(e));cfgSet('sheet_stale',JSON.stringify([...keys]));
+}
 function deleteOrder(orderId){
-  const o=orderGroups(db.Pedidos).find(x=>x.id===orderId);if(!o)return;
-  const np=db.Pagamentos.filter(p=>p['ID do pedido']===orderId).length;
-  showModal('Excluir pedido',`<p>Excluir o pedido manual de <strong>${esc(o.name)}</strong> (${money(o.total)})? Essa ação não pode ser desfeita.${np?` Os ${np} pagamento(s) registrados nele também serão apagados.`:''}</p>`,[{id:'cancelD',label:'Cancelar'},{id:'confirmD',label:'Excluir',cls:'danger'}]);
+  const o=orderGroups(allRows()).find(x=>x.id===orderId);if(!o)return;
+  const np=db.Pagamentos.filter(p=>p['ID do pedido']===orderId),paidSum=sum(np,p=>num(p.Valor)),per=periodById(o.period);
+  const fed=(o.source===SRC||o.source===EDITED)&&o.period===cid(sheetCycle());
+  showModal('Excluir pedido',`<p>Excluir o pedido de <strong>${esc(o.name)}</strong> (${money(o.total)})${per?' de <strong>'+esc(cycleLabel(per))+' — '+esc(per.Nome)+'</strong>':''}? Ele deixa de contar no financeiro desse ciclo e a ação não pode ser desfeita.</p>${np.length?`<div class="notice warn"><span>Este pedido tem <b>${np.length}</b> pagamento(s) registrado(s) (${money(paidSum)}). Eles também serão apagados. Se o dinheiro já foi recebido, prefira <b>Editar</b> e remover só o que não veio.</span></div>`:''}${fed?'<p class="muted">Como o pedido veio da planilha, ele será ignorado nas próximas atualizações até a pessoa sair da planilha.</p>':''}<label class="switch"><input type="checkbox" id="delLog" checked> Registrar em Desistências</label>`,[{id:'cancelD',label:'Cancelar'},{id:'confirmD',label:'Excluir pedido',cls:'danger'}]);
   $('cancelD').onclick=closeModal;
-  $('confirmD').onclick=()=>{db.Pedidos=db.Pedidos.filter(r=>r['ID do pedido']!==orderId);db.Pagamentos=db.Pagamentos.filter(p=>p['ID do pedido']!==orderId);closeModal();renderAll();toast('Pedido excluído.')};
+  $('confirmD').onclick=()=>{
+    if($('delLog').checked)o.items.forEach(it=>logDesist(o,it,'Pedido excluído'));
+    ignoreSheetEntryOf(o);removeOrderEverywhere(orderId);
+    closeModal();renderAll();toast('Pedido excluído.');
+  };
+}
+// produto que não foi entregue: tira o item de vários pedidos de uma vez
+function notArrived(){
+  const vid=viewCycleId(),qm=qtyByProduct(vid),prods=Object.entries(qm).sort((a,b)=>a[1].name.localeCompare(b[1].name)),per=periodById(vid);
+  if(!prods.length){toast('Este ciclo ainda não tem pedidos.');return}
+  showModal('Produto que não veio',`<p>Ciclo: <b>${per?esc(cycleLabel(per))+' — '+esc(per.Nome):'—'}</b>. O produto escolhido sai dos pedidos marcados e deixa de contar no financeiro.</p><div class="field"><label for="naProd">Produto</label><select id="naProd">${prods.map(([k,x])=>`<option value="${esc(k)}">${esc(x.name)} — ${fq(x.qty)} un. pedidas</option>`).join('')}</select></div><div id="naList"></div><label class="switch"><input type="checkbox" id="naLog" checked> Registrar em Desistências</label>`,[{id:'cancelNA',label:'Cancelar'},{id:'confirmNA',label:'Remover dos pedidos',cls:'danger'}]);
+  const fill=()=>{
+    const key=$('naProd').value,list=orderGroups(cycleRows(vid)).filter(o=>o.items.some(i=>slug(i.product)===key));
+    $('naList').innerHTML=table(['','Pessoa','Qtd.','Valor','Situação'],list.map(o=>{const its=o.items.filter(i=>slug(i.product)===key);return `<tr><td data-label=""><input type="checkbox" data-oid="${esc(o.id)}" checked aria-label="Incluir ${esc(o.name)}"></td><td data-label="Pessoa"><b>${esc(o.name)}</b></td><td data-label="Qtd.">${fq(sum(its,i=>i.qty))}</td><td class="money" data-label="Valor">${money(sum(its,i=>i.subtotal))}</td><td data-label="Situação">${badge(o.status)}</td></tr>`}).join(''));
+  };
+  fill();$('naProd').onchange=fill;$('cancelNA').onclick=closeModal;
+  $('confirmNA').onclick=()=>{
+    const key=$('naProd').value,ids=new Set([...document.querySelectorAll('#naList input[data-oid]:checked')].map(x=>x.dataset.oid));
+    if(!ids.size){toast('Marque ao menos um pedido.');return}
+    const log=$('naLog').checked,groups=new Map(orderGroups(allRows()).map(g=>[g.id,g]));let n=0,del=0;const skipped=[];
+    ids.forEach(id=>{
+      const o=groups.get(id);if(!o)return;
+      const out=o.items.filter(i=>slug(i.product)===key),keep=o.items.filter(i=>slug(i.product)!==key);
+      if(!keep.length){
+        if(o.paid>0.004){skipped.push(o.name);return}      // ficaria vazio mas tem pagamento: ajuste manualmente
+        if(log)out.forEach(it=>logDesist(o,it,'Produto não veio'));ignoreSheetEntryOf(o);removeOrderEverywhere(id);del++;n++;return;
+      }
+      if(log)out.forEach(it=>logDesist(o,it,'Produto não veio'));
+      writeOrderRows(id,normalizeOrder({id,period:o.period,name:o.name,date:o.date,items:keep,total:sum(keep,i=>i.subtotal),notes:o.notes,source:editedSource(o)},[]));
+      n++;
+    });
+    closeModal();renderAll();
+    toast(`Produto removido de ${n} pedido(s)${del?` (${del} pedido(s) ficaram vazios e foram excluídos)`:''}.${skipped.length?' Não alterados (ficariam vazios e já têm pagamento): '+skipped.join(', ')+'.':''}`);
+  };
 }
 async function copyText(t){try{await navigator.clipboard.writeText(t);return true}catch(e){const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();let ok=false;try{ok=document.execCommand('copy')}catch(_){}a.remove();return ok}}
 
 /* ---------- Pix ---------- */
 function pixCfg(){const c={...PIX_DEFAULT};db.Configuracoes.forEach(r=>{const k=String(r.Chave||'');if(k.startsWith('pix_')&&String(r.Valor??'')!=='')c[k.slice(4)]=String(r.Valor)});return c}
 function setPixCfg(o){Object.entries(o).forEach(([k,v])=>{const key='pix_'+k,r=db.Configuracoes.find(x=>x.Chave===key);if(r)r.Valor=v;else db.Configuracoes.push({Chave:key,Valor:v})})}
-function fillPixFields(){const c=pixCfg();$('pixKey').value=c.key;$('pixName').value=c.name;$('pixBank').value=c.bank;$('pixCity').value=c.city}
+function fillPixFields(){const c=pixCfg();$('pixKey').value=c.key;$('pixName').value=c.name;$('pixBank').value=c.bank;$('pixCity').value=c.city;$('pixPublic').value=cfgGet('public_url')}
 function crc16(str){let c=0xFFFF;for(let i=0;i<str.length;i++){c^=str.charCodeAt(i)<<8;for(let j=0;j<8;j++)c=(c&0x8000)?((c<<1)^0x1021)&0xFFFF:(c<<1)&0xFFFF}return c.toString(16).toUpperCase().padStart(4,'0')}
 const tlv=(id,v)=>id+String(v.length).padStart(2,'0')+v;
 // Pix "copia e cola" (BR Code estático). Com valor, o app do banco já abre com o valor preenchido.
-function pixPayload(amount){
-  const c=pixCfg(),asc=x=>String(x).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\x20-\x7E]/g,'').toUpperCase();
+function pixPayload(amount,cfg){
+  const c=cfg||pixCfg(),asc=x=>String(x).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\x20-\x7E]/g,'').toUpperCase();
   const p=tlv('00','01')+tlv('01','11')+tlv('26',tlv('00','BR.GOV.BCB.PIX')+tlv('01',c.key.trim()))+tlv('52','0000')+tlv('53','986')+(amount>0.004?tlv('54',(Math.round(amount*100)/100).toFixed(2)):'')+tlv('58','BR')+tlv('59',asc(c.name).slice(0,25))+tlv('60',asc(c.city).slice(0,15))+tlv('62',tlv('05','***'))+'6304';
   return p+crc16(p);
 }
@@ -857,9 +950,35 @@ function pixInfoHtml(){
   const c=pixCfg();
   return `<div class="pixwrap"><div class="qrbox">${qrSvg(pixPayload(0),190)}</div><div class="pixinfo"><h2>Receber via Pix</h2><span class="muted">QR Code sem valor — para cobrar um valor, use “Cobrar” na pessoa.</span><dl><dt>Chave Pix</dt><dd class="mono">${esc(c.key)}</dd><dt>Nome</dt><dd>${esc(c.name)}</dd><dt>Banco</dt><dd>${esc(c.bank)}</dd></dl><div class="actions"><button class="primary small" data-copypix="key">Copiar chave</button><button class="outline small" data-copypix="payload">Copiar Pix copia e cola</button></div></div></div>`;
 }
+// ---- link de pagamento: abre uma página só com os botões de copiar (sem login) ----
+const b64uEnc=str=>{const b=new TextEncoder().encode(str);let t='';b.forEach(x=>t+=String.fromCharCode(x));return btoa(t).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')};
+const b64uDec=str=>{const t=atob(str.replace(/-/g,'+').replace(/_/g,'/'));return new TextDecoder().decode(Uint8Array.from(t,ch=>ch.charCodeAt(0)))};
+function payLinkBase(){const u=cfgGet('public_url').trim();if(u)return u.split('#')[0];return /^https?:$/.test(location.protocol)?location.origin+location.pathname:''}
+function payLink(name,amount){
+  const base=payLinkBase();if(!base)return '';
+  const c=pixCfg(),o={t:name,v:Math.round(amount*100)/100};
+  ['key','name','bank','city'].forEach(k=>{if(c[k]!==PIX_DEFAULT[k])o[k[0]]=c[k]});   // só leva o que difere do padrão (link mais curto)
+  return base+'#pagar='+b64uEnc(JSON.stringify(o));
+}
+function openPayView(){
+  const m=(location.hash||'').match(/^#pagar=([\w-]+)/);if(!m)return false;
+  let o;try{o=JSON.parse(b64uDec(m[1]))}catch(e){return false}
+  const c={...PIX_DEFAULT};if(o.k)c.key=String(o.k);if(o.n)c.name=String(o.n);if(o.b)c.bank=String(o.b);if(o.c)c.city=String(o.c);
+  const amount=Number(o.v)||0,payload=pixPayload(amount,c);
+  document.body.classList.remove('locked');document.body.classList.add('payview');document.title='Pague com Pix';
+  $('payApp').innerHTML=`<div class="paycard"><div class="loginlogo" style="margin:0 auto 10px">$</div><h1>Pague com Pix</h1>${o.t?`<p class="muted" style="margin:0">Cobrança para</p><p style="font-weight:700;font-size:17px;margin:2px 0 8px">${esc(o.t)}</p>`:''}${amount>0?`<div class="bigmoney" style="color:#b9404b">${money(amount)}</div>`:''}<div class="qrbox" style="display:inline-block;margin:14px 0 6px">${qrSvg(payload,220)}</div>
+  <button class="primary paybtn" id="payCopyKey">Copiar chave Pix</button><div class="paykey" id="payKeyTxt">${esc(c.key)}</div>
+  <button class="outline paybtn" id="payCopyCode" style="margin-top:0">Copiar Pix copia e cola</button>
+  <dl class="paydl"><dt>Nome</dt><dd>${esc(c.name)}</dd><dt>Banco</dt><dd>${esc(c.bank)}</dd></dl>
+  <ol class="paysteps"><li>Toque em <b>Copiar chave Pix</b> (ou em copia e cola).</li><li>Abra o app do seu banco e escolha <b>Pix</b>.</li><li>Cole a chave, confira o nome <b>${esc(c.name)}</b> e conclua o pagamento.</li></ol></div>`;
+  const flash=(id,text)=>{const b=$(id),old=b.textContent;b.textContent=text;setTimeout(()=>b.textContent=old,2200)};
+  $('payCopyKey').onclick=async()=>flash('payCopyKey',(await copyText(c.key))?'Chave copiada ✓':'Segure a chave abaixo para copiar');
+  $('payCopyCode').onclick=async()=>flash('payCopyCode',(await copyText(payload))?'Código copiado ✓':'Não foi possível copiar');
+  return true;
+}
 function cobrancaTexto(name,payload,cycleId){
-  const po=personOpen(name,cycleId),c=pixCfg(),per=periodById(cycleId||viewCycleId());
-  return `Olá, ${name}! Resumo do seu pedido${per?' ('+per.Nome+')':''}:\n\n`+po.items.map(i=>`• ${i.product} × ${fq(i.qty)} — ${money(i.sub)}`).join('\n')+`\n\nTotal dos pedidos: ${money(po.total)}`+(po.paid>0.004?`\nJá pago: ${money(po.paid)}`:'')+`\nValor a pagar: ${money(po.due)}\n\nPix (chave aleatória): ${c.key}\nNome: ${c.name}\nBanco: ${c.bank}\n\nPix copia e cola:\n${payload}`;
+  const po=personOpen(name,cycleId),c=pixCfg(),per=periodById(cycleId||viewCycleId()),link=payLink(name,po.due);
+  return `Olá, ${name}! Resumo do seu pedido${per?' ('+per.Nome+')':''}:\n\n`+po.items.map(i=>`• ${i.product} × ${fq(i.qty)} — ${money(i.sub)}`).join('\n')+`\n\nTotal dos pedidos: ${money(po.total)}`+(po.paid>0.004?`\nJá pago: ${money(po.paid)}`:'')+`\nValor a pagar: ${money(po.due)}\n\n`+(link?`Para pagar, toque no link e copie a chave com um toque:\n${link}\n\n`:'')+`Favorecido: ${c.name} (${c.bank})`+(link?'':'\nA chave Pix e o código copia e cola vão nas mensagens a seguir.');
 }
 
 // Gera uma imagem PNG (cartão de cobrança) com o QR Code do Pix, para enviar junto com a mensagem
@@ -898,32 +1017,37 @@ function downloadBlob(blob,fname){const a=document.createElement('a');a.href=URL
 function cobrar(name,cycleId){
   const po=personOpen(name,cycleId),c=pixCfg();
   if(!po.orders.length){toast(name+' não tem valor em aberto neste ciclo.');return}
-  const payload=pixPayload(po.due);
-  showModal('Cobrar — '+name,`<div class="cobtop"><div class="qrbox">${qrSvg(payload,200)}</div><div class="pixinfo"><div class="muted">Valor a pagar</div><div class="bigmoney">${money(po.due)}</div><dl><dt>Chave Pix</dt><dd class="mono">${esc(c.key)}</dd><dt>Nome</dt><dd>${esc(c.name)}</dd><dt>Banco</dt><dd>${esc(c.bank)}</dd></dl>${po.paid>0.004?`<span class="muted">Total ${money(po.total)} · já pago ${money(po.paid)}</span>`:''}</div></div>
-  <div class="field"><label>Pix copia e cola (já com o valor)</label><textarea id="cobPix" rows="3" readonly>${esc(payload)}</textarea><div><button class="outline small" id="cobCopyPix">Copiar Pix copia e cola</button></div></div>
-  <div class="field"><label>Mensagem para enviar</label><textarea id="cobTxt" rows="10">${esc(cobrancaTexto(name,payload,cycleId))}</textarea><div><button class="outline small" id="cobCopy">Copiar mensagem</button></div></div>
-  <div class="field"><label>Imagem com o QR Code (vai junto com a mensagem)</label><img id="cobImg" class="cobimg hidden" alt="Cobrança com QR Code Pix"><span class="muted" id="cobImgWait">Gerando imagem…</span><div><button class="outline small" id="cobDl">Baixar imagem</button></div></div>`,
-  [{id:'cobClose',label:'Fechar'},{id:'cobReceive',label:'Receber'},{id:'cobSend',label:'Enviar com imagem',cls:'primary'}]);
-  const blobP=cobrancaImagem(name,po.due,payload);
+  const payload=pixPayload(po.due),hasLink=!!payLink(name,po.due);
+  showModal('Cobrar — '+name,`<div class="cobtop"><div class="qrbox">${qrSvg(payload,200)}</div><div class="pixinfo"><div class="muted">Valor a pagar</div><div class="bigmoney">${money(po.due)}</div><dl><dt>Nome</dt><dd>${esc(c.name)}</dd><dt>Banco</dt><dd>${esc(c.bank)}</dd></dl>${po.paid>0.004?`<span class="muted">Total ${money(po.total)} · já pago ${money(po.paid)}</span>`:''}</div></div>
+  <div class="field"><label>1) Mensagem de resumo${hasLink?' (com link de pagamento)':''}</label><textarea id="cobTxt" rows="9">${esc(cobrancaTexto(name,payload,cycleId))}</textarea><div class="rowbuttons"><button class="outline small" id="cobCopy">Copiar mensagem</button></div>${hasLink?'<span class="muted">Quem receber toca no link e copia a chave com um botão — sem precisar copiar a mensagem.</span>':'<span class="muted">Sem link de pagamento: informe o endereço onde o sistema está publicado em Configurações › Dados para receber (Pix). Enquanto isso, envie a chave em mensagem separada (passo 2).</span>'}</div>
+  <div class="field"><label>2) Chave Pix — só a chave, fácil de copiar no WhatsApp</label><input id="cobKey" class="mono" readonly value="${esc(c.key)}"><div class="rowbuttons"><button class="outline small" id="cobCopyKey">Copiar chave</button><button class="outline small" id="cobSendKey">Enviar só a chave</button></div></div>
+  <div class="field"><label>3) Pix copia e cola — só o código, já com o valor</label><textarea id="cobPix" rows="3" readonly>${esc(payload)}</textarea><div class="rowbuttons"><button class="outline small" id="cobCopyPix">Copiar código</button><button class="outline small" id="cobSendPix">Enviar só o código</button></div></div>
+  <div class="field"><label>Imagem com o QR Code (vai junto com a mensagem 1)</label><img id="cobImg" class="cobimg hidden" alt="Cobrança com QR Code Pix"><span class="muted" id="cobImgWait">Gerando imagem…</span><div><button class="outline small" id="cobDl">Baixar imagem</button></div></div>`,
+  [{id:'cobClose',label:'Fechar'},{id:'cobReceive',label:'Receber'},{id:'cobSend',label:'Enviar resumo + imagem',cls:'primary'}]);
+  const blobP=cobrancaImagem(name,po.due,payload),wa=t=>window.open('https://wa.me/?text='+encodeURIComponent(t),'_blank','noopener');
   blobP.then(b=>{const im=$('cobImg');if(!im)return;if(b){im.src=URL.createObjectURL(b);im.classList.remove('hidden');$('cobImgWait').classList.add('hidden')}else $('cobImgWait').textContent='Não foi possível gerar a imagem neste navegador.'});
   $('cobClose').onclick=closeModal;
-  $('cobCopyPix').onclick=async()=>{toast(await copyText($('cobPix').value)?'Pix copia e cola copiado.':'Não foi possível copiar.')};
   $('cobCopy').onclick=async()=>{toast(await copyText($('cobTxt').value)?'Mensagem copiada.':'Não foi possível copiar.')};
+  $('cobCopyKey').onclick=async()=>{toast(await copyText(c.key)?'Chave Pix copiada.':'Não foi possível copiar.')};
+  $('cobSendKey').onclick=()=>wa(c.key);
+  $('cobCopyPix').onclick=async()=>{toast(await copyText($('cobPix').value)?'Pix copia e cola copiado.':'Não foi possível copiar.')};
+  $('cobSendPix').onclick=()=>wa($('cobPix').value);
   $('cobReceive').onclick=()=>receberPessoa(name,cycleId);
   $('cobDl').onclick=async()=>{const b=await blobP;if(!b){toast('Não foi possível gerar a imagem.');return}downloadBlob(b,'pix-'+(slug(name)||'cobranca')+'.png')};
   $('cobSend').onclick=async()=>{
-    const text=$('cobTxt').value,blob=await blobP,wa='https://wa.me/?text='+encodeURIComponent(text);
-    if(!blob){window.open(wa,'_blank','noopener');toast('Não consegui gerar a imagem; abri o WhatsApp só com o texto.');return}
+    const text=$('cobTxt').value,blob=await blobP;
+    if(!blob){wa(text);toast('Não consegui gerar a imagem; abri o WhatsApp só com o texto.');return}
     const file=new File([blob],'pix-'+(slug(name)||'cobranca')+'.png',{type:'image/png'});
     if(navigator.canShare&&navigator.canShare({files:[file]})){            // celular: compartilha imagem + texto
       try{await navigator.share({files:[file],text,title:'Cobrança Pix'});return}catch(e){if(e&&e.name==='AbortError')return}
     }
     let copied=false;                                                       // computador: copia a imagem e abre o WhatsApp com o texto
     try{if(window.ClipboardItem&&navigator.clipboard&&navigator.clipboard.write){await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);copied=true}}catch(e){}
-    window.open(wa,'_blank','noopener');
+    wa(text);
     toast(copied?'Imagem copiada. No WhatsApp, cole (Ctrl+V) na conversa.':'WhatsApp aberto. Use “Baixar imagem” e anexe o arquivo à conversa.');
   };
 }
+
 function extrato(name){
   const gs=orderGroups(allRows()).filter(o=>slug(o.name)===slug(name));
   const by={};gs.forEach(o=>(by[o.period]=by[o.period]||[]).push(o));
@@ -944,29 +1068,39 @@ function openMore(){
 }
 
 function newOrder(editId){
-  const editing=editId?orderGroups(db.Pedidos).find(o=>o.id===editId):null;
+  const editing=editId?orderGroups(allRows()).find(o=>o.id===editId):null;
   if(editId&&!editing){toast('Pedido não encontrado.');return}
   if(!db.Periodos.length)ensurePeriod();
   const opts=periodSorted().map(p=>`<option value="${esc(cid(p))}">${esc(cycleLabel(p))} — ${esc(p.Nome)}</option>`).join('');
   const itemRow=it=>`<div class="itemrow"><input class="ip" list="prodList" placeholder="Produto *" value="${esc(it?it.product:'')}"><input class="iq" type="number" min=".01" step=".01" value="${it?it.qty:1}" aria-label="Quantidade"><input class="iu" type="number" min="0" step=".01" value="${it?it.unit:0}" aria-label="Valor unitário"><button class="outline small irm" aria-label="Remover item">✕</button></div>`;
-  showModal(editing?'Editar pedido':'Novo pedido',`<div class="two"><div class="field"><label>Nome da pessoa *</label><input id="newName" value="${esc(editing?editing.name:'')}"></div><div class="field"><label>Data do pedido</label><input id="newDate" type="date" value="${editing&&editing.date?editing.date:isoDate()}"></div></div><div class="field"><label for="newCycle">Ciclo do pedido *</label><select id="newCycle">${opts}</select><span class="muted">Pedido avulso atrasado (ex.: de sábado)? Escolha o ciclo da semana que já fechou.</span></div><datalist id="prodList">${db.Produtos.map(p=>`<option value="${esc(p['Descrição'])}"></option>`).join('')}</datalist><div class="field"><label>Itens (produto · quantidade · valor unitário R$)</label><div id="items">${editing?editing.items.map(itemRow).join(''):itemRow()}</div><div><button class="outline small" id="addItem">＋ Adicionar item</button></div></div><div class="field"><label>Observações</label><input id="newNotes" value="${esc(editing?editing.notes:'')}"></div><p class="muted">Total: <b id="newTotal">${money(0)}</b></p>`,[{id:'cancelNew',label:'Cancelar'},{id:'confirmNew',label:editing?'Salvar pedido':'Adicionar pedido',cls:'primary'}]);
+  const srcNote=editing&&editing.source!==MANUAL?`<div class="notice info"><span>${editing.source===EDITED?'Pedido da planilha já editado manualmente.':'Pedido vindo da planilha: ao salvar, ele passa a ser <b>editado manualmente</b> e a planilha deixa de atualizá-lo.'}</span></div>`:'';
+  showModal(editing?'Editar pedido':'Novo pedido',`${srcNote}<div class="two"><div class="field"><label>Nome da pessoa *</label><input id="newName" value="${esc(editing?editing.name:'')}"></div><div class="field"><label>Data do pedido</label><input id="newDate" type="date" value="${editing&&editing.date?editing.date:isoDate()}"></div></div><div class="field"><label for="newCycle">Ciclo do pedido *</label><select id="newCycle">${opts}</select><span class="muted">Pedido avulso atrasado (ex.: de sábado)? Escolha o ciclo da semana que já fechou.</span></div><datalist id="prodList">${db.Produtos.map(p=>`<option value="${esc(p['Descrição'])}"></option>`).join('')}</datalist><div class="field"><label>Itens (produto · quantidade · valor unitário R$)</label><div id="items">${editing?editing.items.map(itemRow).join(''):itemRow()}</div><div><button class="outline small" id="addItem">＋ Adicionar item</button></div>${editing?'<span class="muted">Produto que não veio? Toque em ✕ para tirar o item. Para tirar o último item, use “Excluir pedido”.</span>':''}</div><div class="field"><label>Observações</label><input id="newNotes" value="${esc(editing?editing.notes:'')}"></div><p class="muted">Total: <b id="newTotal">${money(0)}</b><span id="editInfo"></span></p>${editing?'<label class="switch"><input type="checkbox" id="editLog" checked> Registrar o que for removido em Desistências</label>':''}`,
+    [{id:'cancelNew',label:'Cancelar'}].concat(editing?[{id:'delFromEdit',label:'Excluir pedido',cls:'danger'}]:[]).concat([{id:'confirmNew',label:editing?'Salvar pedido':'Adicionar pedido',cls:'primary'}]));
   $('newCycle').value=editing?editing.period:(viewCycleId()||cid(currentPeriod()));
-  const upd=()=>{$('newTotal').textContent=money(sum([...document.querySelectorAll('#items .itemrow')],r=>num(r.querySelector('.iq').value)*num(r.querySelector('.iu').value)))};
+  const upd=()=>{
+    const tot=sum([...document.querySelectorAll('#items .itemrow')],r=>num(r.querySelector('.iq').value)*num(r.querySelector('.iu').value));
+    $('newTotal').textContent=money(tot);
+    if(editing){const diff=tot-Math.min(editing.paid,Infinity);$('editInfo').textContent=editing.paid>0.004?` • já pago ${money(editing.paid)} → ${diff>0.004?'saldo '+money(diff):diff<-0.004?'pago a mais '+money(-diff)+' (devolver/creditar)':'quitado'}`:''}
+  };
   upd();
   $('items').addEventListener('input',e=>{if(e.target.classList.contains('ip')){const pr=db.Produtos.find(x=>slug(x['Descrição'])===slug(e.target.value)),u=e.target.closest('.itemrow').querySelector('.iu');if(pr&&!num(u.value))u.value=num(pr.Valor)}upd()});
   $('items').addEventListener('click',e=>{if(e.target.closest('.irm')&&document.querySelectorAll('#items .itemrow').length>1){e.target.closest('.itemrow').remove();upd()}});
   $('addItem').onclick=()=>{$('items').insertAdjacentHTML('beforeend',itemRow())};
   $('cancelNew').onclick=closeModal;
+  if($('delFromEdit'))$('delFromEdit').onclick=()=>deleteOrder(editId);
   $('confirmNew').onclick=()=>{
     const name=$('newName').value.trim(),period=$('newCycle').value;
     const items=[...document.querySelectorAll('#items .itemrow')].map(r=>({product:r.querySelector('.ip').value.trim(),qty:num(r.querySelector('.iq').value),unit:num(r.querySelector('.iu').value)})).filter(i=>i.product).map(i=>({...i,subtotal:i.qty*i.unit}));
     if(!name||!items.length||items.some(i=>i.qty<=0)){toast('Informe a pessoa e ao menos um produto com quantidade válida.');return}
     if(!period){toast('Escolha o ciclo do pedido.');return}
-    const base={period,name,date:$('newDate').value,items,total:sum(items,i=>i.subtotal),notes:$('newNotes').value,source:MANUAL};
+    const base={period,name,date:$('newDate').value||isoDate(),items,total:sum(items,i=>i.subtotal),notes:$('newNotes').value,source:MANUAL};
     if(editing){
-      const at=db.Pedidos.findIndex(r=>r['ID do pedido']===editId);
-      db.Pedidos=db.Pedidos.filter(r=>r['ID do pedido']!==editId);
-      db.Pedidos.splice(Math.max(at,0),0,...normalizeOrder({...base,id:editId},db.Pedidos));
+      if($('editLog')&&$('editLog').checked){
+        const nq={};items.forEach(i=>{const k=slug(i.product);nq[k]=(nq[k]||0)+i.qty});
+        const oq={};editing.items.forEach(i=>{const k=slug(i.product),x=oq[k]||(oq[k]={product:i.product,unit:i.unit,qty:0});x.qty+=i.qty});
+        Object.entries(oq).forEach(([k,x])=>{const left=nq[k]||0;if(x.qty-left>0.0001)logDesist({id:editId,period,name,date:base.date},x,left?'Quantidade reduzida':'Item removido',x.qty-left)});
+      }
+      writeOrderRows(editId,normalizeOrder({...base,id:editId,source:editedSource(editing)},[]));
       db.Pagamentos.forEach(pg=>{if(pg['ID do pedido']===editId){pg['ID do período']=period;pg['Nome da pessoa']=name}});
     }else db.Pedidos.push(...normalizeOrder({...base,id:newId()}));
     const cp=periodById(period);
@@ -1028,7 +1162,7 @@ function renderDesistencias(){
   $('desCount').textContent=db.Desistencias.filter(d=>d['ID do período']===cid(currentPeriod())).length;
   $('desCards').innerHTML=[stat('Registros',all.length),stat('Itens desistidos',fq(sum(all,d=>num(d.Quantidade)))),stat('Valor desistido',money(sum(all,d=>num(d.Subtotal))),'não entra no total dos pedidos','negative'),stat('Pessoas',new Set(all.map(d=>slug(d['Nome da pessoa']))).size)].join('');
   const list=all.filter(d=>(!q||[d['Nome da pessoa'],d.Produto].join(' ').toLowerCase().includes(q))&&(!t||d.Tipo===t)).slice().reverse();
-  $('desTable').innerHTML=list.length?table(['Pessoa','Produto','Qtd.','Valor','Tipo','Detectado em','Período',''],list.map(d=>`<tr><td data-label="Pessoa"><b>${esc(d['Nome da pessoa'])}</b></td><td data-label="Produto">${esc(d.Produto)}</td><td data-label="Qtd.">${fq(num(d.Quantidade))}</td><td class="money" data-label="Valor">${money(num(d.Subtotal))}</td><td data-label="Tipo"><span class="badge ${d.Tipo==='Pedido removido'?'alerta':'parcial'}" style="margin:0">${esc(d.Tipo)}</span></td><td data-label="Detectado em">${esc(d['Detectado em'])}</td><td data-label="Período">${esc(d['Nome do período']||periodName(d['ID do período']))}</td><td data-label=""><button class="outline small" data-desdel="${esc(d['ID do registro'])}">Excluir</button></td></tr>`).join('')):'<div class="empty"><b>Nenhuma desistência registrada</b>Quando alguém tirar um item da planilha, ele aparece aqui.</div>';
+  $('desTable').innerHTML=list.length?table(['Pessoa','Produto','Qtd.','Valor','Tipo','Detectado em','Período',''],list.map(d=>`<tr><td data-label="Pessoa"><b>${esc(d['Nome da pessoa'])}</b></td><td data-label="Produto">${esc(d.Produto)}</td><td data-label="Qtd.">${fq(num(d.Quantidade))}</td><td class="money" data-label="Valor">${money(num(d.Subtotal))}</td><td data-label="Tipo"><span class="badge ${/^Pedido/.test(d.Tipo)?'alerta':'parcial'}" style="margin:0">${esc(d.Tipo)}</span></td><td data-label="Detectado em">${esc(d['Detectado em'])}</td><td data-label="Período">${esc(d['Nome do período']||periodName(d['ID do período']))}</td><td data-label=""><button class="outline small" data-desdel="${esc(d['ID do registro'])}">Excluir</button></td></tr>`).join('')):'<div class="empty"><b>Nenhuma desistência registrada</b>Quando alguém tirar um item da planilha, ele aparece aqui.</div>';
 }
 function deleteDes(id){
   db.Desistencias=db.Desistencias.filter(d=>d['ID do registro']!==id);renderAll();toast('Registro excluído.');
@@ -1085,11 +1219,13 @@ const sig=items=>items.map(i=>`${i.product}:${num(i.qty)}:${num(i.unit)}`).sort(
 
 /* Sincronização: um pedido da planilha = uma pessoa no período aberto (ID estável GS-período-pessoa).
    Atualiza o que mudou, preserva status de pagamento e nunca apaga nada sozinho. */
-function applySync(incoming,allowRemoval=true){
+function applySync(incoming,allowRemoval=true,skip=new Set()){
   const p=sheetCycle();if(!p)return null;
   const pid=p['ID do período'],added=[],changed=[],alerts=[],gave=[];let dupes=0,suspicious=false;const seen=new Set();
   incoming.forEach(o=>{
     const oid='GS-'+pid+'-'+slug(o.name);seen.add(oid);
+    if(skip.has(staleKey(o)))return;   // pedido antigo que ainda está na planilha: ignorado até ela ser limpa
+    if(db.Pedidos.some(r=>r['ID do pedido']===oid&&r.Origem===EDITED))return;   // editado manualmente: a planilha não mexe mais
     let oldRows=db.Pedidos.filter(r=>r['ID do pedido']===oid);
     if(!oldRows.length){ // adota pedidos criados pela versão antiga (IDs aleatórios) para não duplicar
       const leg=orderGroups(db.Pedidos).filter(g=>g.period===pid&&slug(g.name)===slug(o.name)&&String(g.source).startsWith('Google Sheets')&&!String(g.id).startsWith('GS-'));
@@ -1130,6 +1266,7 @@ function applySync(incoming,allowRemoval=true){
     // trava: se metade ou mais dos pedidos sumiu de uma vez, não move nada (pode ser erro na planilha)
     suspicious=goneG.filter(g=>g.status==='Pendente').length>=3&&goneG.length>=totalG/2;
     goneG.forEach(g=>{
+      if(g.source===EDITED)return;   // editado manualmente: nunca é removido pela planilha
       if(g.status!=='Pendente'||suspicious){orphans.add(g.id);return} // já pago (ou parcial): nunca move sozinho
       g.items.forEach(i=>gave.push({oid:g.id,name:g.name,date:g.date,product:i.product,qty:i.qty,unit:i.unit,tipo:'Pedido removido'}));
       db.Pedidos=db.Pedidos.filter(r=>r['ID do pedido']!==g.id);
@@ -1153,7 +1290,7 @@ function renderSync(){
   if(syncing)txt='Sincronizando…';
   else if(syncState==='error')txt='Sem conexão com a planilha — toque para tentar';
   else if(syncState==='noperiod')txt='Inicie uma semana para sincronizar';
-  else if(lastSync){txt='Atualizado '+ago(lastSync);if(settings.auto&&nextAt&&!document.hidden)txt+=` · próxima em ${Math.max(0,Math.ceil((nextAt-Date.now())/1000))}s`;else if(!settings.auto)txt+=' · automático desligado'}
+  else if(lastSync){txt='Atualizado '+ago(lastSync)+(sheetEmpty?' · planilha sem pedidos':'');if(settings.auto&&nextAt&&!document.hidden)txt+=` · próxima em ${Math.max(0,Math.ceil((nextAt-Date.now())/1000))}s`;else if(!settings.auto)txt+=' · automático desligado'}
   else txt='Aguardando sincronização';
   t.textContent=txt;
 }
@@ -1174,9 +1311,16 @@ async function syncNow(manual){
     if(h===lastHash){if(manual)toast('Planilha sem alterações.');return}
     const first=!lastHash;lastHash=h;
     const parsed=parseMatrix(data,SRC);
-    if(!parsed.length)throw new Error('Não consegui interpretar a estrutura da planilha.');
-    lastParsed=parsed;
-    const r=applySync(parsed);
+    if(!parsed.length){   // planilha limpa (só cabeçalhos): nada a importar e libera pedidos iguais aos antigos
+      lastParsed=[];sheetEmpty=true;if(staleSet().size)cfgSet('sheet_stale','[]');hideDrift();renderAll();
+      if(manual)toast('A planilha está sem pedidos no momento.');return}
+    sheetEmpty=false;lastParsed=parsed;
+    let stale=staleSet();
+    if(stale.size){const present=new Set(parsed.map(staleKey)),keep=[...stale].filter(k=>present.has(k));if(keep.length!==stale.size){cfgSet('sheet_stale',JSON.stringify(keep));stale=new Set(keep)}}
+    const tp=sheetCycle(),dr=sheetDrift(parsed.filter(o=>!stale.has(staleKey(o))),tp);
+    if(dr&&dr.high&&driftOk!==h){showDrift(dr,tp,h);renderAll();return}
+    hideDrift();
+    const r=applySync(parsed,true,stale);
     renderAll();
     if(r.added.length||r.changed.length||r.gave.length){
       if(!first||r.added.length){
@@ -1408,38 +1552,74 @@ function archiveFlow(){
   $('cancelArchive').onclick=closeModal;
   $('confirmArchive').onclick=()=>{const n=snapshotCycle(p);closeModal();renderAll();if(downloadWorkbook('Histórico salvo'))notify(`Histórico salvo (${n} linha(s) de “${p.Nome}”) e Excel gerado.`,'success')};
 }
-// sobreposição entre a planilha do Google e os pedidos de um ciclo (sinal de que a planilha ainda não foi limpa)
+// ---- quarentena: pedidos antigos que ainda estão na planilha não entram no ciclo novo ----
+function staleSet(){try{return new Set(JSON.parse(cfgGet('sheet_stale')||'[]'))}catch(e){return new Set()}}
+const staleKey=o=>slug(o.name)+'|'+sig(o.items.map(i=>({product:i.product,qty:i.qty,unit:i.unit})));
+// planilha ↔ pedidos de um ciclo: quais entradas da planilha são iguais a pedidos que já estão nele
 function sheetOverlap(fromP){
   if(!fromP||!lastParsed.length)return null;
   const old=orderGroups(cycleRows(cid(fromP)));let n=0;
-  lastParsed.forEach(o=>{const m=old.find(g=>slug(g.name)===slug(o.name));if(m&&sig(m.items.map(i=>({product:i.product,qty:i.qty,unit:i.unit})))===sig(o.items))n++});
-  return {n,total:lastParsed.length,high:n>=1&&n>=lastParsed.length*0.5};
+  lastParsed.forEach(o=>{const m=old.find(g=>slug(g.name)===slug(o.name));if(m&&staleKey({name:m.name,items:m.items})===staleKey(o))n++});
+  return {n,total:lastParsed.length};
 }
-function sheetWarn(fromP){
-  const ov=sheetOverlap(fromP);if(!ov||!ov.high)return '';
-  return `<div class="notice warn"><span><b>Atenção:</b> a planilha do Google ainda parece ter os pedidos de “${esc(fromP.Nome)}” (${ov.n} de ${ov.total} pessoas iguais). Limpe a planilha de origem antes; senão esses pedidos serão importados de novo no novo ciclo.</span></div><label class="switch"><input type="checkbox" id="ackSheet"> Já limpei (ou vou limpar) a planilha</label>`;
+function addStale(fromP){
+  if(!fromP||!lastParsed.length)return 0;
+  const old=orderGroups(cycleRows(cid(fromP))),keys=staleSet();let n=0;
+  lastParsed.forEach(o=>{const m=old.find(g=>slug(g.name)===slug(o.name));if(m&&staleKey({name:m.name,items:m.items})===staleKey(o)){keys.add(staleKey(o));n++}});
+  cfgSet('sheet_stale',JSON.stringify([...keys]));return n;
 }
+async function refreshSheet(){
+  if(!settings.api)return;
+  const res=await fetch(settings.api+(settings.api.includes('?')?'&':'?')+'t='+Date.now(),{cache:'no-store'});
+  if(!res.ok)throw new Error('HTTP '+res.status);
+  const data=await res.json();if(!Array.isArray(data))throw new Error('resposta inválida');
+  lastParsed=data.length?parseMatrix(data,SRC):[];
+}
+function sheetNote(fromP){
+  const ov=sheetOverlap(fromP);if(!ov||!ov.n)return '';
+  return `<div class="notice info"><span>A planilha ainda tem <b>${ov.n}</b> pedido(s) iguais aos de “${esc(fromP.Nome)}”. Pode continuar: eles serão <b>ignorados</b> no novo ciclo até você limpar a planilha de origem.</span></div>`;
+}
+// ---- proteção: a planilha mudou demais em relação ao ciclo que a recebe ----
+function sheetDrift(parsed,p){
+  if(!p||!parsed.length)return null;
+  const id=cid(p),ex=orderGroups(db.Pedidos.filter(r=>r['ID do período']===id&&r.Origem!==EDITED&&String(r['ID do pedido']).startsWith('GS-'+id+'-')));
+  if(ex.length<3)return null;
+  const inc=new Map(parsed.map(o=>[slug(o.name),o]));let diff=0,gone=0;
+  inc.forEach((o,k)=>{const g=ex.find(x=>slug(x.name)===k);if(!g||staleKey({name:g.name,items:g.items})!==staleKey(o))diff++});
+  ex.forEach(g=>{if(!inc.has(slug(g.name)))gone++});
+  const n=diff+gone;return {diff,gone,exist:ex.length,total:parsed.length,high:n>=3&&n>=ex.length*0.6};
+}
+function showDrift(dr,p,h){
+  driftHash=h;
+  $('driftText').innerHTML=`A planilha mudou bastante em relação a <b>${esc(cycleLabel(p))} — ${esc(p.Nome)}</b> (${dr.diff} pedido(s) novo(s) ou diferentes e ${dr.gone} que sumiram, de ${dr.exist}). Parece uma nova semana. Para não alterar os valores desta semana, <b>as mudanças ficaram pausadas</b>.`;
+  $('driftBanner').classList.remove('hidden');
+}
+function hideDrift(){$('driftBanner').classList.add('hidden')}
+
 function startNewWeek(){
   const cur=currentPeriod(),nxt=nextPeriod(),sc=sheetCycle(),st=p=>calc(cycleRows(cid(p)));
+  const fromSheet=!!(cur&&sc&&cid(sc)===cid(cur));
   const moves=!sc||!nxt||cid(sc)!==cid(nxt);
-  const warn=moves&&cur&&sc&&cid(sc)===cid(cur)?sheetWarn(cur):'';
   let startBox;
   if(nxt){const s2=st(nxt);startBox=`<p><b>${esc(nxt.Nome)}</b> (Próxima Semana) vira a <b>Semana Atual</b>. ${s2.groups.length?`Já tem ${s2.groups.length} pedido(s) lançado(s), ${money(s2.total)}.`:'Ainda não tem pedidos.'}</p>`}
   else startBox=`<p>Não há “Próxima Semana” criada — será criado um novo ciclo como Semana Atual:</p><div class="two"><div class="field"><label for="nwName">Nome *</label><input id="nwName" value="${esc(weekName(defaultNewWeek()))}"></div><div class="field"><label for="nwDate">Início</label><input id="nwDate" type="date" value="${isoDate()}"></div></div>`;
   let endBox='';
-  if(cur){const s1=st(cur);endBox=`<p><b>${esc(cur.Nome)}</b> será <b>encerrada</b> (consolidada): ${s1.groups.length} pedido(s), vendido ${money(s1.total)}, a receber ${money(s1.pending)}. Ela continua disponível para receber pagamentos e pedidos avulsos atrasados.</p><label class="switch"><input type="checkbox" id="nwHist" checked> Salvar histórico (gerar Excel) da semana que termina</label>`}
-  const sheetBox=moves?`<p>A planilha do Google passará a alimentar a nova Semana Atual.</p>${warn}`:'<p class="muted">A planilha do Google já está alimentando esta semana.</p>';
+  if(cur){const s1=st(cur);endBox=`<p><b>${esc(cur.Nome)}</b> será <b>encerrada</b>: ${s1.groups.length} pedido(s), vendido ${money(s1.total)}, a receber <b>${money(s1.pending)}</b>.</p><p class="muted">Quem ainda não pagou continua sendo controlado: registre os pagamentos em <b>Pagamentos</b> ou <b>Cobrar</b> escolhendo o ciclo no topo (ou pelo painel de pendências do Dashboard). Cada pagamento atualiza o Financeiro dessa semana, sem mexer na nova.</p><label class="switch"><input type="checkbox" id="nwHist" checked> Salvar histórico (gerar Excel) da semana que termina</label>`}
+  const sheetBox=moves?`<p>A planilha do Google passará a alimentar a nova Semana Atual. <b>Você pode iniciar agora e limpar a planilha depois.</b></p>${fromSheet?sheetNote(cur):''}`:'<p class="muted">A planilha do Google já está alimentando esta semana.</p>';
   showModal('Iniciar Nova Semana',startBox+'<div class="splitline"></div>'+endBox+'<div class="splitline"></div>'+sheetBox,[{id:'cancelNW',label:'Cancelar'},{id:'confirmNW',label:'Iniciar Nova Semana',cls:'primary'}]);
   $('cancelNW').onclick=closeModal;
-  $('confirmNW').onclick=()=>{
-    if($('ackSheet')&&!$('ackSheet').checked){toast('Confirme que a planilha foi limpa.');return}
+  $('confirmNW').onclick=async()=>{
+    let name='';
+    if(!nxt){name=($('nwName').value||'').trim();if(!name){toast('Informe o nome da nova semana.');return}}
+    const btn=$('confirmNW');btn.disabled=true;btn.textContent='Verificando a planilha…';
+    if(fromSheet&&settings.api){try{await refreshSheet()}catch(e){btn.disabled=false;btn.textContent='Iniciar Nova Semana';toast('Não consegui ler a planilha agora ('+e.message+'). Verifique a internet e tente de novo.');return}}
     let np=nxt;
-    if(!np){const name=($('nwName').value||'').trim();if(!name){toast('Informe o nome da nova semana.');return}
-      np={'ID do período':newCycleId(),Nome:name,'Data de abertura':$('nwDate').value||isoDate(),'Data de encerramento':'',Status:'Atual','Arquivado em':''};db.Periodos.push(np)}
+    if(!np){np={'ID do período':newCycleId(),Nome:name,'Data de abertura':$('nwDate').value||isoDate(),'Data de encerramento':'',Status:'Atual','Arquivado em':''};db.Periodos.push(np)}
     const hist=!!(cur&&$('nwHist')&&$('nwHist').checked);
+    if(fromSheet)addStale(cur);
     if(cur){if(hist)snapshotCycle(cur);cur.Status='Encerrado';cur['Data de encerramento']=cur['Data de encerramento']||isoDate()}
     np.Status='Atual';if(!np['Data de abertura'])np['Data de abertura']=isoDate();
-    cfgSet('sheet_cycle',cid(np));settings.viewCycle='__atual';saveSettings();lastHash='';orphans.clear();
+    cfgSet('sheet_cycle',cid(np));settings.viewCycle='__atual';saveSettings();lastHash='';driftOk='';hideDrift();orphans.clear();
     closeModal();renderAll();
     toast('Nova semana iniciada: '+np.Nome+'.');
     if(hist)downloadWorkbook('Histórico salvo');
@@ -1449,16 +1629,16 @@ function startNewWeek(){
 function createNextWeek(){
   const ex=nextPeriod();if(ex){toast('Já existe uma Próxima Semana: '+ex.Nome);return}
   const sc=sheetCycle();
-  showModal('Criar próxima semana',`<p>Use para registrar vendas antecipadas enquanto a Semana Atual segue em andamento. Os valores ficam separados.</p><div class="two"><div class="field"><label for="cnName">Nome *</label><input id="cnName" value="${esc(weekName(nextMondayISO()))}"></div><div class="field"><label for="cnDate">Início previsto</label><input id="cnDate" type="date" value="${nextMondayISO()}"></div></div><label class="switch"><input type="checkbox" id="cnSheet"> A planilha do Google passa a alimentar esta semana</label><p class="muted">Marque só depois de limpar a planilha de origem — senão os pedidos da semana atual seriam copiados para a próxima.</p><div id="cnWarn"></div>`,[{id:'cancelCN',label:'Cancelar'},{id:'confirmCN',label:'Criar próxima semana',cls:'primary'}]);
-  $('cnSheet').onchange=()=>{$('cnWarn').innerHTML=$('cnSheet').checked&&sc?sheetWarn(sc):''};
+  showModal('Criar próxima semana',`<p>Use para registrar vendas antecipadas enquanto a Semana Atual segue em andamento. Os valores ficam separados.</p><div class="two"><div class="field"><label for="cnName">Nome *</label><input id="cnName" value="${esc(weekName(nextMondayISO()))}"></div><div class="field"><label for="cnDate">Início previsto</label><input id="cnDate" type="date" value="${nextMondayISO()}"></div></div><label class="switch"><input type="checkbox" id="cnSheet"> A planilha do Google passa a alimentar esta semana</label><p class="muted">Pode marcar mesmo antes de limpar a planilha: os pedidos que já estão nela e pertencem à semana atual serão ignorados na próxima semana.</p><div id="cnWarn"></div>`,[{id:'cancelCN',label:'Cancelar'},{id:'confirmCN',label:'Criar próxima semana',cls:'primary'}]);
+  $('cnSheet').onchange=()=>{$('cnWarn').innerHTML=$('cnSheet').checked&&sc?sheetNote(sc):''};
   $('cancelCN').onclick=closeModal;
-  $('confirmCN').onclick=()=>{
+  $('confirmCN').onclick=async()=>{
     const name=$('cnName').value.trim();if(!name){toast('Informe o nome.');return}
-    if($('cnSheet').checked&&$('ackSheet')&&!$('ackSheet').checked){toast('Confirme que a planilha foi limpa.');return}
+    const feed=$('cnSheet').checked;
+    if(feed&&sc&&settings.api){try{await refreshSheet()}catch(e){toast('Não consegui ler a planilha agora ('+e.message+'). Tente de novo.');return}}
     const np={'ID do período':newCycleId(),Nome:name,'Data de abertura':$('cnDate').value||nextMondayISO(),'Data de encerramento':'',Status:'Próxima','Arquivado em':''};
     db.Periodos.push(np);
-    const feed=$('cnSheet').checked;
-    if(feed){cfgSet('sheet_cycle',cid(np));lastHash='';orphans.clear()}
+    if(feed){if(sc)addStale(sc);cfgSet('sheet_cycle',cid(np));lastHash='';driftOk='';hideDrift();orphans.clear()}
     closeModal();renderAll();toast('Próxima semana criada.');
     if(feed)syncNow(true).then(schedule);
   };
@@ -1471,9 +1651,11 @@ function editCycle(id){
 }
 function setSheetCycle(id){
   const p=periodById(id),from=sheetCycle();if(!p)return;
-  showModal('Planilha do Google → ciclo',`<p>A planilha do Google passará a alimentar: <b>${esc(cycleLabel(p))} — ${esc(p.Nome)}</b>.</p><p class="muted">Os pedidos que já estão em outros ciclos não são alterados.</p>${from&&cid(from)!==id?sheetWarn(from):''}`,[{id:'cancelSC',label:'Cancelar'},{id:'confirmSC',label:'Confirmar',cls:'primary'}]);
+  showModal('Planilha do Google → ciclo',`<p>A planilha do Google passará a alimentar: <b>${esc(cycleLabel(p))} — ${esc(p.Nome)}</b>.</p><p class="muted">Os pedidos que já estão em outros ciclos não são alterados.</p>${from&&cid(from)!==id?sheetNote(from):''}`,[{id:'cancelSC',label:'Cancelar'},{id:'confirmSC',label:'Confirmar',cls:'primary'}]);
   $('cancelSC').onclick=closeModal;
-  $('confirmSC').onclick=()=>{if($('ackSheet')&&!$('ackSheet').checked){toast('Confirme que a planilha foi limpa.');return}cfgSet('sheet_cycle',id);lastHash='';orphans.clear();closeModal();renderAll();toast('Planilha agora alimenta: '+p.Nome+'.');syncNow(true).then(schedule)};
+  $('confirmSC').onclick=async()=>{
+    if(from&&cid(from)!==id&&settings.api){try{await refreshSheet()}catch(e){toast('Não consegui ler a planilha agora ('+e.message+'). Tente de novo.');return}addStale(from)}
+    cfgSet('sheet_cycle',id);lastHash='';driftOk='';hideDrift();orphans.clear();closeModal();renderAll();toast('Planilha agora alimenta: '+p.Nome+'.');syncNow(true).then(schedule)};
 }
 function deleteCycle(id){
   const p=periodById(id);if(!p)return;
@@ -1494,7 +1676,7 @@ $('moreBtn').onclick=openMore;
 $('logoutBtn').onclick=askLogout;
 $('loginForm').addEventListener('submit',e=>{e.preventDefault();submitLogin()});
 $('togglePass').onclick=()=>{const i=$('loginPass'),show=i.type==='password';i.type=show?'text':'password';$('togglePass').textContent=show?'Ocultar':'Mostrar'};
-$('savePixBtn').onclick=()=>{const k=$('pixKey').value.trim(),n=$('pixName').value.trim();if(!k||!n){toast('Informe a chave e o nome do recebedor.');return}setPixCfg({key:k,name:n,bank:$('pixBank').value.trim(),city:$('pixCity').value.trim()||PIX_DEFAULT.city});renderAll();toast('Dados do Pix salvos.')};
+$('savePixBtn').onclick=()=>{const k=$('pixKey').value.trim(),n=$('pixName').value.trim();if(!k||!n){toast('Informe a chave e o nome do recebedor.');return}setPixCfg({key:k,name:n,bank:$('pixBank').value.trim(),city:$('pixCity').value.trim()||PIX_DEFAULT.city});cfgSet('public_url',$('pixPublic').value.trim());renderAll();toast('Dados do Pix salvos.')};
 ['searchCobrar','filterCobrar'].forEach(i=>$(i).addEventListener('input',renderCobrar));
 document.querySelectorAll('[data-goto]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.goto)));
 $('syncChip').onclick=()=>tick(true).then(schedule);
@@ -1535,11 +1717,11 @@ $('pushAllBtn').onclick=()=>{
   $('confirmPush').onclick=()=>{closeModal();rrun(async()=>{const v=await rcall('GET',{action:'versions'});R.ver=v.versions||{};R.conflict=false;await flushRemote(true);toast('Banco atualizado.')}).catch(e=>{R.err=e.message;setR('error');toast('Falha: '+e.message)})};
 };
 ['searchProducts','sortProducts'].forEach(i=>$(i).addEventListener('input',renderProducts));
-$('newProductBtn').onclick=()=>editProduct();
+$('newProductBtn').onclick=()=>editProduct();$('notArrivedBtn').onclick=notArrived;
 $('orderSummaryBtn').onclick=openOrderSummary;
 ['searchDes','filterDesType'].forEach(i=>$(i).addEventListener('input',renderDesistencias));
 $('clearDesBtn').onclick=clearDes;
-$('newOrderBtn').onclick=()=>newOrder();$('archiveBtn').onclick=archiveFlow;$('newWeekBtn').onclick=startNewWeek;$('newWeekBtn2').onclick=startNewWeek;$('nextWeekBtn').onclick=createNextWeek;
+$('newOrderBtn').onclick=()=>newOrder();$('archiveBtn').onclick=archiveFlow;$('newWeekBtn').onclick=startNewWeek;$('newWeekBtn2').onclick=startNewWeek;$('nextWeekBtn').onclick=createNextWeek;$('driftNew').onclick=startNewWeek;$('driftApply').onclick=()=>{driftOk=driftHash;lastHash='';hideDrift();syncNow(true).then(schedule)};
 $('cycleSelect').addEventListener('change',()=>{const v=$('cycleSelect').value;settings.viewCycle=v===cid(currentPeriod())?'__atual':v;saveSettings();shownOrders=60;renderAll()});$('exportReportBtn').onclick=exportCsv;
 $('modalClose').onclick=closeModal;$('modalBack').addEventListener('click',e=>{if(e.target===$('modalBack'))closeModal()});
 document.addEventListener('keydown',e=>{
@@ -1547,10 +1729,10 @@ document.addEventListener('keydown',e=>{
   if(e.key==='/'&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){e.preventDefault();go('pedidos');$('searchOrders').focus()}
 });
 document.addEventListener('click',e=>{
-  const t=e.target.closest('[data-view],[data-pay],[data-del],[data-extrato],[data-cobrar],[data-quitar],[data-chip],[data-more],[data-pedit],[data-pdel],[data-pimport],[data-desdel],[data-receber],[data-delpay],[data-copypix],[data-gomore],[data-cyedit],[data-cysheet],[data-cydel]');if(!t)return;
+  const t=e.target.closest('[data-view],[data-pay],[data-del],[data-extrato],[data-cobrar],[data-quitar],[data-chip],[data-more],[data-pedit],[data-pdel],[data-pimport],[data-desdel],[data-receber],[data-delpay],[data-copypix],[data-gomore],[data-cyedit],[data-cysheet],[data-cydel],[data-cyfocus]');if(!t)return;
   const d=t.dataset;
   if(d.view)openDetails(d.view);else if(d.pay)payOrder(d.pay);else if(d.del)deleteOrder(d.del);
-  else if(d.extrato)extrato(d.extrato);else if(d.cobrar)cobrar(d.cobrar,d.cy);else if(d.receber)receberPessoa(d.receber,d.cy);else if(d.cyedit)editCycle(d.cyedit);else if(d.cysheet)setSheetCycle(d.cysheet);else if(d.cydel)deleteCycle(d.cydel);else if(d.delpay)delPayment(d.delpay);
+  else if(d.extrato)extrato(d.extrato);else if(d.cobrar)cobrar(d.cobrar,d.cy);else if(d.receber)receberPessoa(d.receber,d.cy);else if(d.cyedit)editCycle(d.cyedit);else if(d.cysheet)setSheetCycle(d.cysheet);else if(d.cydel)deleteCycle(d.cydel);else if(d.cyfocus){settings.viewCycle=d.cyfocus;saveSettings();shownOrders=60;renderAll();go(d.cypage||'pagamentos')}else if(d.delpay)delPayment(d.delpay);
   else if(d.gomore){closeModal();go(d.gomore)}
   else if(d.copypix){const c=pixCfg();copyText(d.copypix==='key'?c.key:pixPayload(0)).then(ok=>toast(ok?'Copiado.':'Não foi possível copiar.'))}
   else if(d.chip!==undefined&&t.classList.contains('chip')){statusFilter=d.chip;shownOrders=60;renderOrders()}
@@ -1564,7 +1746,7 @@ applyTheme();if(!db.Periodos.length)ensurePeriod();renderAll();
 if(!db.Pedidos.length&&!db.Historico.length){notify('Buscando os pedidos na planilha do Google Sheets…','info')}
 setInterval(renderSync,1000);
 renderRemote();
-boot();
+if(!openPayView())boot();
 })();
 </script>
 </body>
