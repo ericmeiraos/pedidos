@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#15213a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Financeiro">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>Financeiro de Pedidos</title>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
@@ -183,7 +187,7 @@ body.locked .login{display:flex}
 .logincard h1{font-size:22px;margin:12px 0 4px;letter-spacing:-.4px}
 .loginlogo{background:#4a78ff;color:#fff;width:46px;height:46px;border-radius:13px;display:grid;place-items:center;font-size:22px}
 .passwrap{display:flex;gap:8px}.passwrap input{flex:1}
-.loginerr{color:var(--red);font-size:13px;min-height:18px;margin:12px 0 0}
+.loginerr{color:var(--red);font-size:13px;min-height:18px;margin:12px 0 0;line-height:1.45}.loginerr.ok{color:var(--green)}.loginerr.info{color:var(--muted)}
 details summary{cursor:pointer;color:var(--muted);font-size:12px;margin:2px 0 10px}
 .loginbusy{color:#fff;font-weight:600;margin:auto}
 .logincard{margin:auto}
@@ -437,6 +441,7 @@ body.payview .payapp{display:flex;min-height:100vh;padding:18px;overflow:auto}
         
         <div class="actions"><button class="primary" id="connectDbBtn">Conectar ao banco</button><button class="outline" id="pullAllBtn">Baixar do banco</button><button class="outline" id="pushAllBtn">Enviar tudo para o banco</button><button class="danger" id="disconnectDbBtn">Desconectar</button></div>
         <p class="footnote" id="remoteInfo">Não conectado.</p>
+        <div class="field" style="margin-top:14px"><label for="deviceLink">Link para abrir em outro aparelho (já com o banco configurado)</label><input id="deviceLink" readonly><div class="actions"><button class="outline small" id="copyDeviceLink">Copiar link</button></div><span class="muted">No celular, abra este link e só depois use “Adicionar à tela inicial”. O atalho guarda o link do banco e você só precisa entrar com usuário e senha.</span></div>
       </div>
     </div>
     <div class="panel" style="margin-bottom:16px"><div class="panelhead"><h2>Dados para receber (Pix)</h2><span class="tagline">Aparecem na aba Cobrar</span></div>
@@ -520,6 +525,8 @@ const fresh=new Set(), orphans=new Set();
 const baseTitle=document.title;
 
 try{Object.assign(settings,JSON.parse(localStorage.getItem(LS_SET)||'{}'))}catch(e){}
+// link de configuração (?api=...): grava o link do banco neste aparelho; vale também para o atalho da tela inicial
+try{const qa=new URLSearchParams(location.search).get('api');if(qa&&/^https:\/\/script\.google\.com\/(a\/[^/]+\/)?macros\/s\/[\w-]+\/exec$/.test(qa)&&qa!==settings.dbApi){settings.dbApi=qa;settings.dbLinked='';localStorage.setItem(LS_SET,JSON.stringify(settings))}}catch(e){}
 try{const s=JSON.parse(localStorage.getItem(LS_DB)||'null');if(s&&s.db){for(const k of Object.keys(db))db[k]=Array.isArray(s.db[k])?s.db[k]:[];dbName=s.dbName||'';R.ver=s.rver||{};R.hash=s.rhash||{}}}catch(e){}
 
 const $=i=>document.getElementById(i);
@@ -978,7 +985,7 @@ function openPayView(){
 }
 function cobrancaTexto(name,payload,cycleId){
   const po=personOpen(name,cycleId),c=pixCfg(),per=periodById(cycleId||viewCycleId()),link=payLink(name,po.due);
-  return `Olá, ${name}! Resumo do seu pedido${per?' ('+per.Nome+')':''}:\n\n`+po.items.map(i=>`• ${i.product} × ${fq(i.qty)} — ${money(i.sub)}`).join('\n')+`\n\nTotal dos pedidos: ${money(po.total)}`+(po.paid>0.004?`\nJá pago: ${money(po.paid)}`:'')+`\nValor a pagar: ${money(po.due)}\n\n`+(link?`Para pagar, toque no link e copie a chave com um toque:\n${link}\n\n`:'')+`Favorecido: ${c.name} (${c.bank})`+(link?'':'\nA chave Pix e o código copia e cola vão nas mensagens a seguir.');
+  return `Olá, ${name}! Resumo do seu pedido${per?' ('+per.Nome+')':''}:\n\n`+po.items.map(i=>`• ${i.product} × ${fq(i.qty)} — ${money(i.sub)}`).join('\n')+`\n\nTotal dos pedidos: ${money(po.total)}`+(po.paid>0.004?`\nJá pago: ${money(po.paid)}`:'')+`\nValor a pagar: ${money(po.due)}\n\nChave Pix (aleatória):\n${c.key}\n\n`+(link?`Para copiar a chave com um toque, abra o link:\n${link}\n\n`:'')+`Favorecido: ${c.name} (${c.bank})`;
 }
 
 // Gera uma imagem PNG (cartão de cobrança) com o QR Code do Pix, para enviar junto com a mensagem
@@ -1019,7 +1026,7 @@ function cobrar(name,cycleId){
   if(!po.orders.length){toast(name+' não tem valor em aberto neste ciclo.');return}
   const payload=pixPayload(po.due),hasLink=!!payLink(name,po.due);
   showModal('Cobrar — '+name,`<div class="cobtop"><div class="qrbox">${qrSvg(payload,200)}</div><div class="pixinfo"><div class="muted">Valor a pagar</div><div class="bigmoney">${money(po.due)}</div><dl><dt>Nome</dt><dd>${esc(c.name)}</dd><dt>Banco</dt><dd>${esc(c.bank)}</dd></dl>${po.paid>0.004?`<span class="muted">Total ${money(po.total)} · já pago ${money(po.paid)}</span>`:''}</div></div>
-  <div class="field"><label>1) Mensagem de resumo${hasLink?' (com link de pagamento)':''}</label><textarea id="cobTxt" rows="9">${esc(cobrancaTexto(name,payload,cycleId))}</textarea><div class="rowbuttons"><button class="outline small" id="cobCopy">Copiar mensagem</button></div>${hasLink?'<span class="muted">Quem receber toca no link e copia a chave com um botão — sem precisar copiar a mensagem.</span>':'<span class="muted">Sem link de pagamento: informe o endereço onde o sistema está publicado em Configurações › Dados para receber (Pix). Enquanto isso, envie a chave em mensagem separada (passo 2).</span>'}</div>
+  <div class="field"><label>1) Mensagem de resumo (com a chave Pix${hasLink?' e o link de pagamento':''})</label><textarea id="cobTxt" rows="9">${esc(cobrancaTexto(name,payload,cycleId))}</textarea><div class="rowbuttons"><button class="outline small" id="cobCopy">Copiar mensagem</button></div>${hasLink?'<span class="muted">A chave vai na mensagem e, ao tocar no link, a pessoa abre uma página com o botão “Copiar chave” — sem precisar copiar a mensagem toda.</span>':'<span class="muted">Sem link de pagamento: informe o endereço onde o sistema está publicado em Configurações › Dados para receber (Pix). A chave já vai dentro da mensagem; o passo 2 envia só a chave, se quiser.</span>'}</div>
   <div class="field"><label>2) Chave Pix — só a chave, fácil de copiar no WhatsApp</label><input id="cobKey" class="mono" readonly value="${esc(c.key)}"><div class="rowbuttons"><button class="outline small" id="cobCopyKey">Copiar chave</button><button class="outline small" id="cobSendKey">Enviar só a chave</button></div></div>
   <div class="field"><label>3) Pix copia e cola — só o código, já com o valor</label><textarea id="cobPix" rows="3" readonly>${esc(payload)}</textarea><div class="rowbuttons"><button class="outline small" id="cobCopyPix">Copiar código</button><button class="outline small" id="cobSendPix">Enviar só o código</button></div></div>
   <div class="field"><label>Imagem com o QR Code (vai junto com a mensagem 1)</label><img id="cobImg" class="cobimg hidden" alt="Cobrança com QR Code Pix"><span class="muted" id="cobImgWait">Gerando imagem…</span><div><button class="outline small" id="cobDl">Baixar imagem</button></div></div>`,
@@ -1363,6 +1370,7 @@ const remoteOn=()=>!!settings.dbApi&&settings.dbLinked===settings.dbApi&&!!auth;
 const tHash=(n,src=db)=>JSON.stringify((src[n]||[]).map(r=>DB_HEADERS[n].map(h=>String(r[h]??''))));
 const hhmmss=d=>d.toLocaleTimeString('pt-BR');
 function setR(state){R.state=state;renderRemote()}
+function renderDeviceLink(){const b=location.href.split(/[?#]/)[0];$('deviceLink').value=settings.dbApi?b+'?api='+encodeURIComponent(settings.dbApi):''}
 function renderRemote(){
   const chip=$('remoteChip');chip.classList.toggle('hidden',!settings.dbApi);
   let st=R.state,t;
@@ -1371,13 +1379,16 @@ function renderRemote(){
   else if(st==='sync'){t='Banco: sincronizando…'}
   else if(st==='error'){t='Banco: sem conexão — tentando de novo'}
   else{st='ok';t='Banco salvo'+(R.lastOk?' às '+hhmmss(R.lastOk):'')}
-  chip.dataset.state=st==='sync'?'loading':st;$('remoteText').textContent=t;
+  chip.dataset.state=st==='sync'?'loading':st;$('remoteText').textContent=t;renderDeviceLink();
   $('remoteInfo').textContent=!settings.dbApi?'Não conectado. Os dados ficam só neste navegador e no Excel.':(R.err&&st==='error'?'Último erro: '+R.err:t+'.');
   $('dbStatus').textContent=remoteOn()?'Banco online conectado':(dbName||'Dados salvos neste navegador');
 }
 async function rcall(method,body){
   const url=settings.dbApi,tk=auth?.token||'';let res;
-  if(method==='GET')res=await fetch(url+(url.includes('?')?'&':'?')+'action='+body.action+'&token='+encodeURIComponent(tk)+'&t='+Date.now(),{cache:'no-store'});
+  if(method==='GET'){
+    const mk=()=>url+(url.includes('?')?'&':'?')+'action='+body.action+'&token='+encodeURIComponent(tk)+'&t='+Date.now();
+    try{res=await fetch(mk(),{cache:'no-store'})}catch(e){await new Promise(r=>setTimeout(r,700));res=await fetch(mk(),{cache:'no-store'})}   // iOS às vezes falha ao retomar o app: tenta de novo
+  }
   else res=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({...body,token:tk})});
   if(!res.ok)throw new Error('HTTP '+res.status);
   let j;try{j=await res.json()}catch(e){throw new Error('Resposta inválida da API. Confira se a implantação está como “Qualquer pessoa” e se o link termina em /exec.')}
@@ -1445,17 +1456,31 @@ async function connectRemote(){
 }
 async function tick(manual){if(!auth)return;await rrun(()=>pullRemote(manual)).catch(()=>{});await syncNow(manual)}
 
+/* ---------- ajuda para entrar (link do banco / rede) ---------- */
+function validateApiUrl(u){
+  u=(u||'').trim();
+  if(!u)return 'Informe o link do banco de dados.';
+  if(!/^https:\/\//i.test(u))return 'O link precisa começar com https://';
+  if(!/^https:\/\/script\.google\.com\//i.test(u))return 'Esse não parece o link do Apps Script (ele começa com https://script.google.com/macros/s/…).';
+  if(/\/dev(\?|$)/.test(u))return 'Esse é o link de teste (/dev). Use o link da implantação, que termina em /exec.';
+  if(!/\/exec(\?|$)/.test(u))return 'O link do banco deve terminar em /exec.';
+  if(u.split('?')[0]===DEFAULT_API.split('?')[0])return 'Esse é o link da planilha de pedidos. Aqui vai o link do banco de dados (o outro Apps Script).';
+  return '';
+}
+const NET_HELP='Não consegui falar com o banco. Confira: (1) o link termina em /exec; (2) no Apps Script, a implantação está com “Executar como: Eu” e “Quem pode acessar: Qualquer pessoa”; (3) a internet do aparelho.';
+const isNetErr=e=>!e.auth&&/load failed|failed to fetch|networkerror|network request failed/i.test(String(e&&e.message));
+function loginMsg(text,kind){const el=$('loginErr');el.className='loginerr'+(kind?' '+kind:'');el.textContent=text||''}
 /* ---------- login e sessão ---------- */
 function updateUserUI(){$('userLabel').textContent=auth?('Olá, '+(auth.name||auth.user)):'';$('logoutBtn').classList.toggle('hidden',!auth)}
 function showLogin(msg,form=true){
   document.body.classList.add('locked');
   $('loginForm').classList.toggle('hidden',!form);$('loginBusy').classList.toggle('hidden',form);
-  $('loginErr').textContent=msg||'';$('loginApi').value=settings.dbApi||'';
+  loginMsg(msg);$('loginApi').value=settings.dbApi||'';
   if(!settings.dbApi)$('loginApiBox').open=true;
   $('loginBtn').disabled=false;$('loginBtn').textContent='Entrar';
   if(form){const u=$('loginUser');if(!u.value)u.value=localStorage.getItem('fp_lastuser')||'';setTimeout(()=>(u.value?$('loginPass'):u).focus(),50)}
 }
-function hideLogin(){document.body.classList.remove('locked');$('loginPass').value='';$('loginErr').textContent='';updateUserUI()}
+function hideLogin(){document.body.classList.remove('locked');$('loginPass').value='';loginMsg('');updateUserUI()}
 function onAuthLost(msg){
   if(!auth)return;
   auth=null;authStore.clear();clearTimeout(timer);clearTimeout(ft);started=false;closeModal();
@@ -1463,16 +1488,16 @@ function onAuthLost(msg){
 }
 async function submitLogin(){
   const user=$('loginUser').value.trim(),pass=$('loginPass').value,remember=$('loginRemember').checked,api=$('loginApi').value.trim()||settings.dbApi;
-  if(!api){$('loginApiBox').open=true;$('loginErr').textContent='Informe o link do banco de dados.';return}
-  if(!user||!pass){$('loginErr').textContent='Informe usuário e senha.';return}
+  const badApi=validateApiUrl(api);if(badApi){$('loginApiBox').open=true;loginMsg(badApi);return}
+  if(!user||!pass){loginMsg('Informe usuário e senha.');return}
   if(api!==settings.dbApi){settings.dbApi=api;settings.dbLinked='';saveSettings()}
-  $('loginBtn').disabled=true;$('loginBtn').textContent='Entrando…';$('loginErr').textContent='';
+  $('loginBtn').disabled=true;$('loginBtn').textContent='Entrando…';loginMsg('');
   try{
     const j=await rcall('POST',{action:'login',usuario:user,senha:pass});
     auth={user:j.usuario,name:j.nome,token:j.token};authStore.set(auth,remember);
     try{localStorage.setItem('fp_lastuser',j.usuario)}catch(e){}
     hideLogin();startApp();
-  }catch(e){$('loginErr').textContent=e.auth?'Sessão inválida.':(e.message||'Falha ao entrar.');$('loginBtn').disabled=false;$('loginBtn').textContent='Entrar'}
+  }catch(e){loginMsg(e.auth?'Sessão inválida.':isNetErr(e)?NET_HELP:(e.message||'Falha ao entrar.'));$('loginBtn').disabled=false;$('loginBtn').textContent='Entrar'}
 }
 function askLogout(){
   showModal('Sair','<p>Sair desta conta? Os dados guardados neste aparelho serão apagados — eles continuam salvos no banco online.</p>',[{id:'cancelOut',label:'Cancelar'},{id:'confirmOut',label:'Sair',cls:'danger'}]);
@@ -1675,6 +1700,7 @@ document.querySelectorAll('.nav button,.bottomnav button[data-page]').forEach(b=
 $('moreBtn').onclick=openMore;
 $('logoutBtn').onclick=askLogout;
 $('loginForm').addEventListener('submit',e=>{e.preventDefault();submitLogin()});
+$('copyDeviceLink').onclick=async()=>{const v=$('deviceLink').value;if(!v){toast('Conecte ao banco primeiro.');return}toast(await copyText(v)?'Link copiado.':'Não foi possível copiar.')};
 $('togglePass').onclick=()=>{const i=$('loginPass'),show=i.type==='password';i.type=show?'text':'password';$('togglePass').textContent=show?'Ocultar':'Mostrar'};
 $('savePixBtn').onclick=()=>{const k=$('pixKey').value.trim(),n=$('pixName').value.trim();if(!k||!n){toast('Informe a chave e o nome do recebedor.');return}setPixCfg({key:k,name:n,bank:$('pixBank').value.trim(),city:$('pixCity').value.trim()||PIX_DEFAULT.city});cfgSet('public_url',$('pixPublic').value.trim());renderAll();toast('Dados do Pix salvos.')};
 ['searchCobrar','filterCobrar'].forEach(i=>$(i).addEventListener('input',renderCobrar));
@@ -1699,7 +1725,7 @@ $('autoSync').onchange=()=>{settings.auto=$('autoSync').checked;saveSettings();s
 
 $('remoteChip').onclick=()=>{if(R.conflict)showConflict();else rrun(()=>pullRemote(true)).catch(()=>{})};
 $('connectDbBtn').onclick=async()=>{
-  const url=$('dbApiUrl').value.trim();if(!url){toast('Cole o link da API do banco.');return}
+  const url=$('dbApiUrl').value.trim(),bad=validateApiUrl(url);if(bad){toast(bad);return}
   settings.dbApi=url;settings.dbLinked='';R.conflict=false;saveSettings();renderRemote();
   try{await rrun(()=>connectRemote())}catch(e){R.err=e.message;setR('error');notify('Não consegui conectar ao banco: '+e.message,'error')}
 };
@@ -1741,7 +1767,7 @@ document.addEventListener('click',e=>{
 });
 
 /* ---------- início ---------- */
-$('dbApiUrl').value=settings.dbApi||'';fillPixFields();$('autoSync').checked=settings.auto;$('syncInterval').value=String(settings.interval);$('soundOn').checked=settings.sound;$('apiUrl').value=settings.api;$('sheetLink').href=SHEET_URL;
+$('dbApiUrl').value=settings.dbApi||'';fillPixFields();renderDeviceLink();$('autoSync').checked=settings.auto;$('syncInterval').value=String(settings.interval);$('soundOn').checked=settings.sound;$('apiUrl').value=settings.api;$('sheetLink').href=SHEET_URL;
 applyTheme();if(!db.Periodos.length)ensurePeriod();renderAll();
 if(!db.Pedidos.length&&!db.Historico.length){notify('Buscando os pedidos na planilha do Google Sheets…','info')}
 setInterval(renderSync,1000);
