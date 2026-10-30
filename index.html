@@ -1030,22 +1030,32 @@ function cobrar(name,cycleId){
   $('cobKeyIn').onchange=()=>{$('cobTxt').value=cobrancaTexto(name,payload,cycleId,$('cobKeyIn').checked)};
   const next=()=>{const f=$('cobKeyField');if(!f)return;f.classList.remove('flash');void f.offsetWidth;f.classList.add('flash');try{f.scrollIntoView({block:'center',behavior:'smooth'})}catch(e){}};
   $('cobCopyKey').onclick=async()=>{toast(await copyText(c.key)?'Chave Pix copiada.':'Não foi possível copiar.')};
-  $('cobSendKey').onclick=()=>wa(c.key);
+  let step=1;
+  const setStep=n=>{step=n;const b=$('cobSend');if(b)b.textContent=n===1?'1. Enviar resumo + imagem':'2. Enviar a chave Pix agora'};
+  $('cobSendKey').onclick=()=>{wa(c.key);setStep(1)};
+  // depois do resumo: tenta abrir o envio da chave logo em seguida; se o aparelho bloquear, o botão principal vira "2. Enviar a chave Pix agora"
+  const afterSummary=async()=>{
+    setStep(2);
+    if(navigator.share){try{await navigator.share({text:c.key,title:'Chave Pix'});setStep(1);toast('Resumo e chave enviados ✓');return}catch(e){}}
+    next();toast('Agora toque em “2. Enviar a chave Pix agora” para mandar a chave sozinha.');
+  };
   $('cobCopyPix').onclick=async()=>{toast(await copyText($('cobPix').value)?'Pix copia e cola copiado.':'Não foi possível copiar.')};
   $('cobSendPix').onclick=()=>wa($('cobPix').value);
   $('cobReceive').onclick=()=>receberPessoa(name,cycleId);
   $('cobDl').onclick=async()=>{const b=await blobP;if(!b){toast('Não foi possível gerar a imagem.');return}downloadBlob(b,'pix-'+(slug(name)||'cobranca')+'.png')};
   $('cobSend').onclick=async()=>{
+    if(step===2){wa(c.key);setStep(1);toast('Chave enviada. Cobrança completa ✓');return}
     const text=$('cobTxt').value,blob=await blobP;
     if(!blob){wa(text);toast('Não consegui gerar a imagem; abri o WhatsApp só com o texto.');return}
     const file=new File([blob],'pix-'+(slug(name)||'cobranca')+'.png',{type:'image/png'});
     if(navigator.canShare&&navigator.canShare({files:[file]})){            // celular: compartilha imagem + texto
-      try{await navigator.share({files:[file],text,title:'Cobrança Pix'});toast('Agora toque em “Enviar só a chave” para mandar a chave sozinha.');next();return}catch(e){if(e&&e.name==='AbortError')return}
+      try{await navigator.share({files:[file],text,title:'Cobrança Pix'})}catch(e){if(e&&e.name==='AbortError')return;throw e}
+      afterSummary();return;
     }
     let copied=false;                                                       // computador: copia a imagem e abre o WhatsApp com o texto
     try{if(window.ClipboardItem&&navigator.clipboard&&navigator.clipboard.write){await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);copied=true}}catch(e){}
     wa(text);
-    toast((copied?'Imagem copiada: no WhatsApp, cole (Ctrl+V) na conversa. ':'WhatsApp aberto: use “Baixar imagem” e anexe o arquivo. ')+'Depois toque em “Enviar só a chave”.');next();
+    toast((copied?'Imagem copiada: no WhatsApp, cole (Ctrl+V) na conversa. ':'WhatsApp aberto: use “Baixar imagem” e anexe o arquivo. ')+'Depois toque em “2. Enviar a chave Pix agora”.');setStep(2);next();
   };
 }
 
