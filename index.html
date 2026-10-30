@@ -260,6 +260,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:12px;margin:2px 0 10
   .modalbody{padding:12px 16px}
 }
 @media(max-width:420px){.brand small{display:none}.userlabel{max-width:84px}}
+.flash{animation:flashbox 2.4s ease-out}@keyframes flashbox{0%,35%{box-shadow:0 0 0 3px var(--blue);border-radius:10px;background:var(--blue-soft)}100%{box-shadow:0 0 0 0 transparent;background:transparent}}
 .cobimg{display:block;max-width:260px;width:100%;border:1px solid var(--line);border-radius:12px}
 .dashhead{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
 .cyclesel{display:inline-flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:3px 4px 3px 13px;font-size:12px;font-weight:700;max-width:100%}
@@ -448,9 +449,8 @@ body.payview .payapp{display:flex;min-height:100vh;padding:18px;overflow:auto}
       <div class="settingblock">
         <div class="two"><div class="field"><label for="pixKey">Chave Pix</label><input id="pixKey" autocomplete="off"></div><div class="field"><label for="pixName">Nome que aparece ao pagar</label><input id="pixName" maxlength="25"></div></div>
         <div class="two"><div class="field"><label for="pixBank">Banco</label><input id="pixBank"></div><div class="field"><label for="pixCity">Cidade (até 15 letras)</label><input id="pixCity" maxlength="15"></div></div>
-        <div class="field"><label for="pixPublic">Endereço onde o sistema está publicado (para o link de pagamento)</label><input id="pixPublic" inputmode="url" placeholder="https://seu-site.com/index.html" autocomplete="off"></div>
         <div class="actions"><button class="primary" id="savePixBtn">Salvar dados do Pix</button></div>
-        <p class="footnote">Estes dados são gravados no banco e valem para todos os aparelhos. O link de pagamento abre uma página só com os botões “Copiar chave” e “Copiar Pix copia e cola”, sem pedir login. Para funcionar para outras pessoas, o sistema precisa estar publicado num endereço https; deixe vazio se você abre o arquivo direto no aparelho (nesse caso a chave vai em mensagem separada).</p>
+        <p class="footnote">Estes dados são gravados no banco e valem para todos os aparelhos.</p>
       </div>
     </div>
     <div class="panel" style="margin-bottom:16px"><div class="panelhead"><h2>Atualização automática</h2><span class="tagline">Google Sheets → sistema</span></div>
@@ -938,7 +938,7 @@ async function copyText(t){try{await navigator.clipboard.writeText(t);return tru
 /* ---------- Pix ---------- */
 function pixCfg(){const c={...PIX_DEFAULT};db.Configuracoes.forEach(r=>{const k=String(r.Chave||'');if(k.startsWith('pix_')&&String(r.Valor??'')!=='')c[k.slice(4)]=String(r.Valor)});return c}
 function setPixCfg(o){Object.entries(o).forEach(([k,v])=>{const key='pix_'+k,r=db.Configuracoes.find(x=>x.Chave===key);if(r)r.Valor=v;else db.Configuracoes.push({Chave:key,Valor:v})})}
-function fillPixFields(){const c=pixCfg();$('pixKey').value=c.key;$('pixName').value=c.name;$('pixBank').value=c.bank;$('pixCity').value=c.city;$('pixPublic').value=cfgGet('public_url')}
+function fillPixFields(){const c=pixCfg();$('pixKey').value=c.key;$('pixName').value=c.name;$('pixBank').value=c.bank;$('pixCity').value=c.city}
 function crc16(str){let c=0xFFFF;for(let i=0;i<str.length;i++){c^=str.charCodeAt(i)<<8;for(let j=0;j<8;j++)c=(c&0x8000)?((c<<1)^0x1021)&0xFFFF:(c<<1)&0xFFFF}return c.toString(16).toUpperCase().padStart(4,'0')}
 const tlv=(id,v)=>id+String(v.length).padStart(2,'0')+v;
 // Pix "copia e cola" (BR Code estático). Com valor, o app do banco já abre com o valor preenchido.
@@ -958,15 +958,7 @@ function pixInfoHtml(){
   return `<div class="pixwrap"><div class="qrbox">${qrSvg(pixPayload(0),190)}</div><div class="pixinfo"><h2>Receber via Pix</h2><span class="muted">QR Code sem valor — para cobrar um valor, use “Cobrar” na pessoa.</span><dl><dt>Chave Pix</dt><dd class="mono">${esc(c.key)}</dd><dt>Nome</dt><dd>${esc(c.name)}</dd><dt>Banco</dt><dd>${esc(c.bank)}</dd></dl><div class="actions"><button class="primary small" data-copypix="key">Copiar chave</button><button class="outline small" data-copypix="payload">Copiar Pix copia e cola</button></div></div></div>`;
 }
 // ---- link de pagamento: abre uma página só com os botões de copiar (sem login) ----
-const b64uEnc=str=>{const b=new TextEncoder().encode(str);let t='';b.forEach(x=>t+=String.fromCharCode(x));return btoa(t).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')};
 const b64uDec=str=>{const t=atob(str.replace(/-/g,'+').replace(/_/g,'/'));return new TextDecoder().decode(Uint8Array.from(t,ch=>ch.charCodeAt(0)))};
-function payLinkBase(){const u=cfgGet('public_url').trim();if(u)return u.split('#')[0];return /^https?:$/.test(location.protocol)?location.origin+location.pathname:''}
-function payLink(name,amount){
-  const base=payLinkBase();if(!base)return '';
-  const c=pixCfg(),o={t:name,v:Math.round(amount*100)/100};
-  ['key','name','bank','city'].forEach(k=>{if(c[k]!==PIX_DEFAULT[k])o[k[0]]=c[k]});   // só leva o que difere do padrão (link mais curto)
-  return base+'#pagar='+b64uEnc(JSON.stringify(o));
-}
 function openPayView(){
   const m=(location.hash||'').match(/^#pagar=([\w-]+)/);if(!m)return false;
   let o;try{o=JSON.parse(b64uDec(m[1]))}catch(e){return false}
@@ -983,9 +975,9 @@ function openPayView(){
   $('payCopyCode').onclick=async()=>flash('payCopyCode',(await copyText(payload))?'Código copiado ✓':'Não foi possível copiar');
   return true;
 }
-function cobrancaTexto(name,payload,cycleId){
-  const po=personOpen(name,cycleId),c=pixCfg(),per=periodById(cycleId||viewCycleId()),link=payLink(name,po.due);
-  return `Olá, ${name}! Resumo do seu pedido${per?' ('+per.Nome+')':''}:\n\n`+po.items.map(i=>`• ${i.product} × ${fq(i.qty)} — ${money(i.sub)}`).join('\n')+`\n\nTotal dos pedidos: ${money(po.total)}`+(po.paid>0.004?`\nJá pago: ${money(po.paid)}`:'')+`\nValor a pagar: ${money(po.due)}\n\nChave Pix (aleatória):\n${c.key}\n\n`+(link?`Para copiar a chave com um toque, abra o link:\n${link}\n\n`:'')+`Favorecido: ${c.name} (${c.bank})`;
+function cobrancaTexto(name,payload,cycleId,withKey){
+  const po=personOpen(name,cycleId),c=pixCfg(),per=periodById(cycleId||viewCycleId());
+  return `Olá, ${name}! Resumo do seu pedido${per?' ('+per.Nome+')':''}:\n\n`+po.items.map(i=>`• ${i.product} × ${fq(i.qty)} — ${money(i.sub)}`).join('\n')+`\n\nTotal dos pedidos: ${money(po.total)}`+(po.paid>0.004?`\nJá pago: ${money(po.paid)}`:'')+`\nValor a pagar: ${money(po.due)}\n\n`+(withKey?`Chave Pix (aleatória):\n${c.key}\n\n`:'')+`Favorecido: ${c.name} (${c.bank})`+(withKey?'':'\n\nA chave Pix vai na próxima mensagem, sozinha, para copiar com um toque.');
 }
 
 // Gera uma imagem PNG (cartão de cobrança) com o QR Code do Pix, para enviar junto com a mensagem
@@ -1024,17 +1016,19 @@ function downloadBlob(blob,fname){const a=document.createElement('a');a.href=URL
 function cobrar(name,cycleId){
   const po=personOpen(name,cycleId),c=pixCfg();
   if(!po.orders.length){toast(name+' não tem valor em aberto neste ciclo.');return}
-  const payload=pixPayload(po.due),hasLink=!!payLink(name,po.due);
+  const payload=pixPayload(po.due);
   showModal('Cobrar — '+name,`<div class="cobtop"><div class="qrbox">${qrSvg(payload,200)}</div><div class="pixinfo"><div class="muted">Valor a pagar</div><div class="bigmoney">${money(po.due)}</div><dl><dt>Nome</dt><dd>${esc(c.name)}</dd><dt>Banco</dt><dd>${esc(c.bank)}</dd></dl>${po.paid>0.004?`<span class="muted">Total ${money(po.total)} · já pago ${money(po.paid)}</span>`:''}</div></div>
-  <div class="field"><label>1) Mensagem de resumo (com a chave Pix${hasLink?' e o link de pagamento':''})</label><textarea id="cobTxt" rows="9">${esc(cobrancaTexto(name,payload,cycleId))}</textarea><div class="rowbuttons"><button class="outline small" id="cobCopy">Copiar mensagem</button></div>${hasLink?'<span class="muted">A chave vai na mensagem e, ao tocar no link, a pessoa abre uma página com o botão “Copiar chave” — sem precisar copiar a mensagem toda.</span>':'<span class="muted">Sem link de pagamento: informe o endereço onde o sistema está publicado em Configurações › Dados para receber (Pix). A chave já vai dentro da mensagem; o passo 2 envia só a chave, se quiser.</span>'}</div>
-  <div class="field"><label>2) Chave Pix — só a chave, fácil de copiar no WhatsApp</label><input id="cobKey" class="mono" readonly value="${esc(c.key)}"><div class="rowbuttons"><button class="outline small" id="cobCopyKey">Copiar chave</button><button class="outline small" id="cobSendKey">Enviar só a chave</button></div></div>
+  <div class="field"><label>1) Mensagem de resumo (vai junto com a imagem do QR Code)</label><textarea id="cobTxt" rows="9">${esc(cobrancaTexto(name,payload,cycleId,false))}</textarea><div class="rowbuttons"><button class="outline small" id="cobCopy">Copiar mensagem</button></div><label class="switch" style="margin:8px 0 0"><input type="checkbox" id="cobKeyIn"> Incluir a chave Pix dentro desta mensagem <span class="muted">(quem receber copia a mensagem toda, não só a chave)</span></label></div>
+  <div class="field" id="cobKeyField"><label>2) Chave Pix — enviada sozinha, para a pessoa copiar só ela</label><input id="cobKey" class="mono" readonly value="${esc(c.key)}"><div class="rowbuttons"><button class="outline small" id="cobCopyKey">Copiar chave</button><button class="primary small" id="cobSendKey">Enviar só a chave</button></div></div>
   <div class="field"><label>3) Pix copia e cola — só o código, já com o valor</label><textarea id="cobPix" rows="3" readonly>${esc(payload)}</textarea><div class="rowbuttons"><button class="outline small" id="cobCopyPix">Copiar código</button><button class="outline small" id="cobSendPix">Enviar só o código</button></div></div>
   <div class="field"><label>Imagem com o QR Code (vai junto com a mensagem 1)</label><img id="cobImg" class="cobimg hidden" alt="Cobrança com QR Code Pix"><span class="muted" id="cobImgWait">Gerando imagem…</span><div><button class="outline small" id="cobDl">Baixar imagem</button></div></div>`,
-  [{id:'cobClose',label:'Fechar'},{id:'cobReceive',label:'Receber'},{id:'cobSend',label:'Enviar resumo + imagem',cls:'primary'}]);
+  [{id:'cobClose',label:'Fechar'},{id:'cobReceive',label:'Receber'},{id:'cobSend',label:'1. Enviar resumo + imagem',cls:'primary'}]);
   const blobP=cobrancaImagem(name,po.due,payload),wa=t=>window.open('https://wa.me/?text='+encodeURIComponent(t),'_blank','noopener');
   blobP.then(b=>{const im=$('cobImg');if(!im)return;if(b){im.src=URL.createObjectURL(b);im.classList.remove('hidden');$('cobImgWait').classList.add('hidden')}else $('cobImgWait').textContent='Não foi possível gerar a imagem neste navegador.'});
   $('cobClose').onclick=closeModal;
   $('cobCopy').onclick=async()=>{toast(await copyText($('cobTxt').value)?'Mensagem copiada.':'Não foi possível copiar.')};
+  $('cobKeyIn').onchange=()=>{$('cobTxt').value=cobrancaTexto(name,payload,cycleId,$('cobKeyIn').checked)};
+  const next=()=>{const f=$('cobKeyField');if(!f)return;f.classList.remove('flash');void f.offsetWidth;f.classList.add('flash');try{f.scrollIntoView({block:'center',behavior:'smooth'})}catch(e){}};
   $('cobCopyKey').onclick=async()=>{toast(await copyText(c.key)?'Chave Pix copiada.':'Não foi possível copiar.')};
   $('cobSendKey').onclick=()=>wa(c.key);
   $('cobCopyPix').onclick=async()=>{toast(await copyText($('cobPix').value)?'Pix copia e cola copiado.':'Não foi possível copiar.')};
@@ -1046,12 +1040,12 @@ function cobrar(name,cycleId){
     if(!blob){wa(text);toast('Não consegui gerar a imagem; abri o WhatsApp só com o texto.');return}
     const file=new File([blob],'pix-'+(slug(name)||'cobranca')+'.png',{type:'image/png'});
     if(navigator.canShare&&navigator.canShare({files:[file]})){            // celular: compartilha imagem + texto
-      try{await navigator.share({files:[file],text,title:'Cobrança Pix'});return}catch(e){if(e&&e.name==='AbortError')return}
+      try{await navigator.share({files:[file],text,title:'Cobrança Pix'});toast('Agora toque em “Enviar só a chave” para mandar a chave sozinha.');next();return}catch(e){if(e&&e.name==='AbortError')return}
     }
     let copied=false;                                                       // computador: copia a imagem e abre o WhatsApp com o texto
     try{if(window.ClipboardItem&&navigator.clipboard&&navigator.clipboard.write){await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);copied=true}}catch(e){}
     wa(text);
-    toast(copied?'Imagem copiada. No WhatsApp, cole (Ctrl+V) na conversa.':'WhatsApp aberto. Use “Baixar imagem” e anexe o arquivo à conversa.');
+    toast((copied?'Imagem copiada: no WhatsApp, cole (Ctrl+V) na conversa. ':'WhatsApp aberto: use “Baixar imagem” e anexe o arquivo. ')+'Depois toque em “Enviar só a chave”.');next();
   };
 }
 
@@ -1702,7 +1696,7 @@ $('logoutBtn').onclick=askLogout;
 $('loginForm').addEventListener('submit',e=>{e.preventDefault();submitLogin()});
 $('copyDeviceLink').onclick=async()=>{const v=$('deviceLink').value;if(!v){toast('Conecte ao banco primeiro.');return}toast(await copyText(v)?'Link copiado.':'Não foi possível copiar.')};
 $('togglePass').onclick=()=>{const i=$('loginPass'),show=i.type==='password';i.type=show?'text':'password';$('togglePass').textContent=show?'Ocultar':'Mostrar'};
-$('savePixBtn').onclick=()=>{const k=$('pixKey').value.trim(),n=$('pixName').value.trim();if(!k||!n){toast('Informe a chave e o nome do recebedor.');return}setPixCfg({key:k,name:n,bank:$('pixBank').value.trim(),city:$('pixCity').value.trim()||PIX_DEFAULT.city});cfgSet('public_url',$('pixPublic').value.trim());renderAll();toast('Dados do Pix salvos.')};
+$('savePixBtn').onclick=()=>{const k=$('pixKey').value.trim(),n=$('pixName').value.trim();if(!k||!n){toast('Informe a chave e o nome do recebedor.');return}setPixCfg({key:k,name:n,bank:$('pixBank').value.trim(),city:$('pixCity').value.trim()||PIX_DEFAULT.city});renderAll();toast('Dados do Pix salvos.')};
 ['searchCobrar','filterCobrar'].forEach(i=>$(i).addEventListener('input',renderCobrar));
 document.querySelectorAll('[data-goto]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.goto)));
 $('syncChip').onclick=()=>tick(true).then(schedule);
